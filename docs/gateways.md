@@ -4,10 +4,10 @@ This guide applies to `cc-byok` v0.2.0 and newer.
 
 `cc-byok` supports two built-in providers and user-defined gateways:
 
-| Provider ID | Base URL |
-|---|---|
-| `openrouter` | `https://openrouter.ai/api` |
-| `vercel` | `https://ai-gateway.vercel.sh` |
+| Provider ID | Anthropic endpoint | OpenAI endpoint |
+|---|---|---|
+| `openrouter` | `https://openrouter.ai/api` | `https://openrouter.ai/api/v1` |
+| `vercel` | `https://ai-gateway.vercel.sh` | `https://ai-gateway.vercel.sh/v1` |
 
 Custom gateways must implement the Anthropic Messages API, including
 `POST /v1/messages`, streaming, and tool calls. An OpenAI-compatible endpoint by
@@ -78,6 +78,38 @@ Official Vercel Claude Code instructions:
 
 https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api
 
+### Launch Codex App
+
+Codex and Codex App use Vercel's OpenAI Responses endpoint:
+
+```bash
+cc-byok launch codex-app \
+  --provider vercel \
+  --model deepseek/deepseek-v4-pro
+```
+
+Codex Desktop receives persistent configuration equivalent to:
+
+```toml
+model = "deepseek/deepseek-v4-pro"
+model_provider = "cc_byok"
+
+[model_providers.cc_byok]
+name = "Vercel AI Gateway"
+base_url = "https://ai-gateway.vercel.sh/v1"
+wire_api = "responses"
+
+[model_providers.cc_byok.auth]
+command = "<node executable>"
+args = ["<cc-byok credential helper>", "vercel"]
+```
+
+The model ID is not rewritten or special-cased. `cc-byok` also writes a Codex
+model catalog so Desktop displays the gateway model as a custom model. The
+authentication helper reads the key from the OS keychain; the key is not
+written to disk. The pre-existing Codex config is backed up once as
+`~/.codex/config.toml.cc-byok.bak`.
+
 ## Custom Gateway
 
 Add a custom gateway entirely through the CLI:
@@ -146,8 +178,9 @@ It should support:
 - Anthropic stop reasons and errors
 - the model IDs supplied through `ANTHROPIC_MODEL`
 
-`cc-byok` configures and launches Claude Code. It does not translate Anthropic
-requests into OpenAI requests and does not validate a gateway over the network.
+Custom gateways configured by this release are available only to the `claude`
+target. `cc-byok` does not translate Anthropic requests into OpenAI requests
+and does not validate a gateway over the network.
 
 ## Troubleshooting
 

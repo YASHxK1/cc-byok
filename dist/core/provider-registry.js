@@ -1,5 +1,4 @@
 import { CliError } from "./errors.js";
-import { buildAnthropicCompatibleEnvironment } from "./env-builder.js";
 import { OPENROUTER } from "../providers/openrouter.js";
 import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
 const providers = new Map([
@@ -32,13 +31,19 @@ export function isBuiltInProvider(id) {
 export function getBuiltInProvider(id) {
     return providers.get(id) ?? null;
 }
+export function validateCompatibility(provider, protocol) {
+    if (!provider.supportedProtocols.includes(protocol)) {
+        throw new CliError(`Target expects the "${protocol}" protocol, but provider "${provider.id}" is Anthropic-compatible only.`, "INCOMPATIBLE_TARGET");
+    }
+}
 function customProviderDefinition(id, config) {
     return {
         id,
         displayName: config.displayName,
         defaultBaseUrl: config.baseUrl,
         routingMode: "custom Anthropic-compatible gateway",
-        buildEnvironment: buildAnthropicCompatibleEnvironment,
+        supportedProtocols: ["anthropic"],
+        resolveBaseUrl: (baseUrl) => baseUrl,
     };
 }
 //# sourceMappingURL=provider-registry.js.map

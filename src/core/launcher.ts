@@ -2,6 +2,9 @@ import { spawn } from "node:child_process";
 import { CliError, errorMessage } from "./errors.js";
 
 export interface LaunchRequest {
+  targetId: string;
+  targetName: string;
+  command: string;
   args: string[];
   cwd: string;
   env: NodeJS.ProcessEnv;
@@ -11,10 +14,10 @@ export interface ProcessLauncher {
   launch(request: LaunchRequest): Promise<number>;
 }
 
-export class ClaudeProcessLauncher implements ProcessLauncher {
+export class ChildProcessLauncher implements ProcessLauncher {
   async launch(request: LaunchRequest): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-      const child = spawn("claude", request.args, {
+      const child = spawn(request.command, request.args, {
         cwd: request.cwd,
         env: request.env,
         stdio: "inherit",
@@ -42,8 +45,8 @@ export class ClaudeProcessLauncher implements ProcessLauncher {
         if (error.code === "ENOENT") {
           reject(
             new CliError(
-              'Claude Code was not found on PATH. Install it from https://code.claude.com/docs/en/setup, then run "cc-byok launch" again.',
-              "CLAUDE_NOT_FOUND",
+              `${request.targetName} command "${request.command}" was not found on PATH. Install it, then run "cc-byok launch ${request.targetId}" again.`,
+              "TARGET_NOT_FOUND",
               127,
               { cause: error },
             ),
@@ -52,7 +55,7 @@ export class ClaudeProcessLauncher implements ProcessLauncher {
         }
         reject(
           new CliError(
-            `Could not launch Claude Code: ${errorMessage(error)}`,
+            `Could not launch ${request.targetName}: ${errorMessage(error)}`,
             "SPAWN_FAILED",
             1,
             { cause: error },

@@ -29,7 +29,7 @@ describe("MVP workflow", () => {
     await runUse(fixture.context, "openrouter", "qwen/qwen3-coder");
     await runProviderList(fixture.context);
     await runStatus(fixture.context);
-    await runLaunch(fixture.context, ["--print", "hello"]);
+    await runLaunch(fixture.context, undefined, ["--print", "hello"]);
 
     expect(fixture.secrets.values.get("openrouter")).toBe("test-api-key");
     expect(fixture.launcher.request?.args).toEqual(["--print", "hello"]);
@@ -63,7 +63,7 @@ describe("MVP workflow", () => {
     const fixture = await createFixture();
     await runInit(fixture.context);
 
-    await expect(runLaunch(fixture.context, [])).rejects.toMatchObject({
+    await expect(runLaunch(fixture.context, undefined, [])).rejects.toMatchObject({
       code: "MISSING_MODEL",
     });
     expect(fixture.launcher.request).toBeNull();
@@ -82,7 +82,7 @@ describe("MVP workflow", () => {
       "team-gateway",
       "anthropic/claude-sonnet-4.6",
     );
-    await runLaunch(fixture.context, []);
+    await runLaunch(fixture.context, undefined, []);
 
     const config = await fixture.context.config.read();
     expect(config.providers["team-gateway"]).toEqual({
@@ -108,7 +108,7 @@ describe("MVP workflow", () => {
       "vercel",
       "anthropic/claude-sonnet-4.6",
     );
-    await runLaunch(fixture.context, []);
+    await runLaunch(fixture.context, undefined, []);
 
     expect(fixture.launcher.request?.env).toMatchObject({
       ANTHROPIC_BASE_URL: "https://ai-gateway.vercel.sh",

@@ -109,6 +109,38 @@ describe("FileConfigStore", () => {
       code: "INVALID_CONFIG",
     });
   });
+
+  it("loads and preserves config created by the v3 target launcher", async () => {
+    const directory = await temporaryDirectory();
+    const configFile = join(directory, "config.json");
+    const original = {
+      version: 3,
+      activeTarget: "codex-app",
+      activeProvider: "vercel",
+      activeModel: "deepseek/deepseek-v4-pro",
+      providers: {
+        openrouter: {
+          displayName: "OpenRouter",
+          baseUrl: "https://openrouter.ai/api",
+          type: "anthropic-compatible",
+        },
+        vercel: {
+          displayName: "Vercel AI Gateway",
+          baseUrl: "https://ai-gateway.vercel.sh",
+          type: "ai-gateway",
+        },
+      },
+      targets: {},
+    };
+    await writeFile(configFile, JSON.stringify(original), "utf8");
+    const store = new FileConfigStore({ configDir: directory, configFile });
+
+    const config = await store.read();
+    await store.write(config);
+
+    expect(config).toEqual(original);
+    expect(JSON.parse(await readFile(configFile, "utf8"))).toEqual(original);
+  });
 });
 
 async function temporaryDirectory(): Promise<string> {

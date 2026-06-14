@@ -2,14 +2,14 @@
 
 These guides document `cc-byok` v0.2.0.
 
-`cc-byok` launches Claude Code through OpenRouter, Vercel AI Gateway, or a
-custom Anthropic-compatible gateway. Provider API keys are stored in your
+`cc-byok` launches Claude Code, Codex, Codex App, and OpenCode through BYOK
+providers and compatible gateways. Provider API keys are stored in your
 operating system keychain.
 
 ## Guides
 
-- [Usage](usage.md): provider-neutral setup, model selection, launching Claude
-  Code, switching providers, and troubleshooting
+- [Usage](usage.md): provider-neutral setup, target launching, model selection,
+  switching providers, and troubleshooting
 - [Gateway Providers](gateways.md): Vercel AI Gateway and custom
   Anthropic-compatible gateway setup
 - [OpenRouter and Claude Code Step-by-Step](openrouter-claude-code-guide.md):
@@ -42,8 +42,7 @@ For Vercel AI Gateway:
 
 ```bash
 cc-byok provider add vercel
-cc-byok use vercel <provider/model-id>
-cc-byok launch
+cc-byok launch codex-app --provider vercel --model deepseek/deepseek-v4-pro
 ```
 
-Claude Code must already be installed and available as the `claude` command.
+The selected target command must already be installed on `PATH`.

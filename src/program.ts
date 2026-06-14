@@ -10,8 +10,8 @@ import { runUse } from "./commands/use.js";
 export function createProgram(context: AppContext): Command {
   const program = new Command()
     .name("cc-byok")
-    .description("Use Claude Code with BYOK providers and compatible gateways")
-    .version("0.2.0");
+    .description("Launch coding agents with BYOK providers and compatible gateways")
+    .version("0.3.2");
 
   program
     .command("init")
@@ -56,10 +56,34 @@ export function createProgram(context: AppContext): Command {
 
   program
     .command("launch")
-    .description("Launch Claude Code with the active provider and model")
-    .argument("[claude-args...]", "arguments forwarded to Claude Code")
+    .description("Launch claude, codex, codex-app, or opencode")
+    .argument("[values...]", "optional target followed by target arguments")
+    .option("--provider <provider>", "override the active provider")
+    .option("--model <model>", "override the active model")
     .allowUnknownOption(true)
-    .action((claudeArgs: string[] = []) => runLaunch(context, claudeArgs));
+    .addHelpText(
+      "after",
+      "\nSupported targets: claude, codex, codex-app, opencode",
+    )
+    .action(
+      (
+        values: string[] = [],
+        options: { provider?: string; model?: string },
+      ) => {
+        const [target, args] = splitLaunchValues(values);
+        return runLaunch(context, target, args, options);
+      },
+    );
 
   return program;
+}
+
+export function splitLaunchValues(
+  values: string[],
+): [target: string | undefined, args: string[]] {
+  const first = values[0];
+  if (!first || first.startsWith("-")) {
+    return [undefined, values];
+  }
+  return [first, values.slice(1)];
 }

@@ -1,21 +1,19 @@
 import type { Config, ProviderConfig } from "./config-schema.js";
 import { CliError } from "./errors.js";
-import { buildAnthropicCompatibleEnvironment } from "./env-builder.js";
+import type { ProtocolProfile } from "./target-registry.js";
 import { OPENROUTER } from "../providers/openrouter.js";
 import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
-
-export interface ProviderEnvironmentInput {
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-}
 
 export interface ProviderDefinition {
   id: string;
   displayName: string;
   defaultBaseUrl: string;
   routingMode: string;
-  buildEnvironment(input: ProviderEnvironmentInput): Record<string, string>;
+  supportedProtocols: ProtocolProfile[];
+  resolveBaseUrl(
+    configuredBaseUrl: string,
+    protocol: ProtocolProfile,
+  ): string;
 }
 
 const providers = new Map<string, ProviderDefinition>([
@@ -60,6 +58,18 @@ export function getBuiltInProvider(id: string): ProviderDefinition | null {
   return providers.get(id) ?? null;
 }
 
+export function validateCompatibility(
+  provider: ProviderDefinition,
+  protocol: ProtocolProfile,
+): void {
+  if (!provider.supportedProtocols.includes(protocol)) {
+    throw new CliError(
+      `Target expects the "${protocol}" protocol, but provider "${provider.id}" is Anthropic-compatible only.`,
+      "INCOMPATIBLE_TARGET",
+    );
+  }
+}
+
 function customProviderDefinition(
   id: string,
   config: ProviderConfig,
@@ -69,6 +79,7 @@ function customProviderDefinition(
     displayName: config.displayName,
     defaultBaseUrl: config.baseUrl,
     routingMode: "custom Anthropic-compatible gateway",
-    buildEnvironment: buildAnthropicCompatibleEnvironment,
+    supportedProtocols: ["anthropic"],
+    resolveBaseUrl: (baseUrl) => baseUrl,
   };
 }

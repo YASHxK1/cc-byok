@@ -1,7 +1,7 @@
 {
   "name": "cc-byok",
-  "version": "0.2.0",
-  "description": "BYOK provider and gateway launcher for Claude Code",
+  "version": "0.3.2",
+  "description": "BYOK provider and gateway launcher for coding agents",
   "type": "module",
   "bin": {
     "cc-byok": "./dist/cli.js"
@@ -16,7 +16,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "npm run typecheck && npm test && npm run build",
     "dev": "tsx src/cli.ts",
-    "test": "vitest run",
+    "test": "vitest run --pool=threads",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepack": "npm run build"
@@ -26,6 +26,8 @@
   },
   "keywords": [
     "claude-code",
+    "codex",
+    "opencode",
     "openrouter",
     "byok",
     "cli"

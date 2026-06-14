@@ -66,8 +66,8 @@ cc-byok use team-gateway <provider/model-id>
 Use the exact model ID accepted by the selected provider. Selecting a model
 updates only the non-secret config file and does not make a network request.
 
-Claude Code depends heavily on reliable tool calling. A model may be available
-through a provider but still perform poorly in coding-agent workflows.
+Coding agents depend heavily on reliable tool calling. A model may be available
+through a provider but still perform poorly in agent workflows.
 
 ### 4. Check Status
 
@@ -85,34 +85,47 @@ The command displays:
 
 It never displays the API key.
 
-### 5. Launch Claude Code
+### 5. Launch a Target
 
-Run this command from the project directory where you want Claude Code to work:
+Bare launch remains backward-compatible and starts Claude Code:
 
 ```bash
 cc-byok launch
 ```
 
-`cc-byok` launches `claude` in the current directory with terminal input and
-output attached directly.
+Supported targets are:
 
-## Forward Claude Code Arguments
+| Target | Command |
+|---|---|
+| `claude` | `claude` |
+| `codex` | `codex` |
+| `codex-app` | `codex app` |
+| `opencode` | `opencode` |
 
-Place Claude Code arguments after `--`:
+Select a target and optionally override the active provider and model:
+
+```bash
+cc-byok launch codex --provider vercel --model openai/gpt-5
+cc-byok launch codex-app --provider vercel --model deepseek/deepseek-v4-pro
+cc-byok launch opencode --provider openrouter --model qwen/qwen3-coder
+```
+
+The overrides do not update the active provider or model in
+`~/.cc-byok/config.json`. `codex-app` also persists the resolved model and
+provider in `~/.codex/config.toml`, since Codex Desktop continues running after
+the launcher process exits.
+
+## Forward Target Arguments
+
+Place target arguments after `--`:
 
 ```bash
 cc-byok launch -- --print "Summarize this repository"
+cc-byok launch codex -- --help
+cc-byok launch codex-app -- /path/to/project
 ```
 
-Another example:
-
-```bash
-cc-byok launch -- --model qwen/qwen3-coder
-```
-
-Claude Code command-line options can override environment-based settings. In
-particular, `--model` overrides the model selected with `cc-byok use` for that
-session.
+Target command-line options may override settings supplied by `cc-byok`.
 
 ## Switch Models
 
@@ -154,7 +167,7 @@ See [Gateway Providers](gateways.md) for setup commands.
 
 ## How Routing Works
 
-The launched Claude Code process receives:
+Claude Code receives:
 
 ```text
 ANTHROPIC_BASE_URL=<selected provider base URL>
@@ -166,8 +179,37 @@ ANTHROPIC_MODEL=<selected model>
 `ANTHROPIC_API_KEY` is deliberately set to an empty value to prevent Claude Code
 from falling back to an Anthropic API key inherited from your shell.
 
-`cc-byok` does not run a proxy and does not send network requests itself. Claude
-Code connects directly to the selected provider or gateway.
+Codex CLI receives:
+
+```text
+OPENAI_BASE_URL=<OpenAI-compatible endpoint>
+OPENAI_API_KEY=<stored provider key>
+OPENAI_MODEL=<selected model>
+```
+
+Codex App writes a `cc_byok` provider and `cc-byok-models.json` catalog under
+`~/.codex`. Its provider uses a command-backed helper to read the API key from
+the OS keychain, so no credential is stored in Codex configuration. The
+original Codex config is preserved once as `config.toml.cc-byok.bak`.
+
+They also receive temporary Codex configuration overrides for `model`,
+`model_provider`, provider `base_url`, `env_key`, and
+`wire_api="responses"`. The model string is passed through unchanged and the
+user's `~/.codex/config.toml` is not modified.
+
+OpenRouter and Vercel use protocol-specific endpoints:
+
+| Provider | Anthropic | OpenAI |
+|---|---|---|
+| OpenRouter | `https://openrouter.ai/api` | `https://openrouter.ai/api/v1` |
+| Vercel | `https://ai-gateway.vercel.sh` | `https://ai-gateway.vercel.sh/v1` |
+
+Custom providers configured through `provider add --base-url` are
+Anthropic-compatible only. Launching `codex`, `codex-app`, or `opencode` with
+one fails with an explicit compatibility error.
+
+`cc-byok` does not run a proxy or send network requests itself. The target
+connects directly to the selected provider or gateway.
 
 ## Troubleshooting
 

@@ -5,7 +5,7 @@
 Before installing `cc-byok`, make sure you have:
 
 - Node.js 20.17 or newer
-- Claude Code installed and available as `claude`
+- the coding agent you want to launch installed on `PATH`
 - an API key for at least one supported provider or gateway
 - an available operating system credential store
 
@@ -23,16 +23,17 @@ Supported credential stores:
 | Linux | Secret Service, such as GNOME Keyring or KWallet | Supported |
 | Windows | Credential Manager | Experimental |
 
-Check your Node.js and Claude Code installations:
+Check Node.js and any target commands you plan to use:
 
 ```bash
 node --version
 claude --version
+codex --version
+opencode --version
 ```
 
-Install Claude Code from its
-[official setup guide](https://code.claude.com/docs/en/setup) if the second
-command is unavailable.
+Only the selected target is required. `codex-app` uses the `codex app`
+subcommand supplied by Codex CLI.
 
 ## Install From npm
 
