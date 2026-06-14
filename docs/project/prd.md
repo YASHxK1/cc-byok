@@ -1,4 +1,8 @@
 # Product Requirements Document
+
+> Historical document: this PRD describes the original OpenRouter-only MVP.
+> Current v0.2.0 behavior is documented in [../usage.md](../usage.md) and
+> [../gateways.md](../gateways.md).
 ## `cc-byok` — BYOK Model Router for Claude Code
 
 ---

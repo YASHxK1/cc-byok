@@ -1,19 +1,77 @@
 import type { AppContext } from "../app-context.js";
 import { CliError } from "../core/errors.js";
 import {
-  getProviderDefinition,
+  getBuiltInProvider,
+  isBuiltInProvider,
   requireConfiguredProvider,
 } from "../core/provider-registry.js";
+
+export interface ProviderAddOptions {
+  baseUrl?: string;
+  displayName?: string;
+}
 
 export async function runProviderAdd(
   context: AppContext,
   providerId: string,
+  options: ProviderAddOptions = {},
 ): Promise<void> {
-  const provider = getProviderDefinition(providerId);
-  const config = await context.config.read();
-  requireConfiguredProvider(config, providerId);
+  const cleanProviderId = providerId.trim().toLowerCase();
+  validateProviderId(cleanProviderId);
 
-  if (await context.secrets.has(providerId)) {
+  let config = await context.config.read();
+  const builtIn = getBuiltInProvider(cleanProviderId);
+  const existing = config.providers[cleanProviderId];
+
+  if (!builtIn && !existing) {
+    if (!options.baseUrl) {
+      throw new CliError(
+        `Custom provider "${cleanProviderId}" requires --base-url <url>. The gateway must implement the Anthropic Messages API.`,
+        "INVALID_INPUT",
+      );
+    }
+
+    const baseUrl = validateBaseUrl(options.baseUrl);
+    config = {
+      ...config,
+      providers: {
+        ...config.providers,
+        [cleanProviderId]: {
+          displayName: options.displayName?.trim() || cleanProviderId,
+          baseUrl,
+          type: "anthropic-compatible",
+        },
+      },
+    };
+  } else if (
+    isBuiltInProvider(cleanProviderId) &&
+    (options.baseUrl || options.displayName)
+  ) {
+    throw new CliError(
+      `Built-in provider "${cleanProviderId}" has managed settings and does not accept custom URL or display-name options.`,
+      "INVALID_INPUT",
+    );
+  } else if (existing && (options.baseUrl || options.displayName)) {
+    const baseUrl = options.baseUrl
+      ? validateBaseUrl(options.baseUrl)
+      : existing.baseUrl;
+    config = {
+      ...config,
+      providers: {
+        ...config.providers,
+        [cleanProviderId]: {
+          ...existing,
+          displayName:
+            options.displayName?.trim() || existing.displayName,
+          baseUrl,
+        },
+      },
+    };
+  }
+
+  const provider = requireConfiguredProvider(config, cleanProviderId).definition;
+
+  if (await context.secrets.has(cleanProviderId)) {
     const replace = await context.prompts.confirmReplace(provider.displayName);
     if (!replace) {
       throw new CliError("Cancelled. The stored API key was not changed.", "CANCELLED", 0);
@@ -25,6 +83,39 @@ export async function runProviderAdd(
     throw new CliError("API key cannot be empty.", "INVALID_INPUT");
   }
 
-  await context.secrets.set(providerId, apiKey);
+  await context.secrets.set(cleanProviderId, apiKey);
+  if (!existing || options.baseUrl || options.displayName) {
+    await context.config.write(config);
+  }
   context.output.log(`${provider.displayName} API key saved securely.`);
+}
+
+function validateProviderId(providerId: string): void {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(providerId)) {
+    throw new CliError(
+      "Provider ID must contain only lowercase letters, numbers, and hyphens.",
+      "INVALID_INPUT",
+    );
+  }
+}
+
+function validateBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new CliError(
+      `Invalid gateway base URL "${value}".`,
+      "INVALID_INPUT",
+    );
+  }
+
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new CliError(
+      "Gateway base URL must use http:// or https://.",
+      "INVALID_INPUT",
+    );
+  }
+
+  return url.toString().replace(/\/$/, "");
 }

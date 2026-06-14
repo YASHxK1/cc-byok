@@ -8,11 +8,15 @@ describe("CLI argument parsing", () => {
   it("forwards arguments after launch to Claude Code", async () => {
     let launchRequest: LaunchRequest | undefined;
     const config: Config = {
-      version: 1,
+      version: 2,
       activeProvider: "openrouter",
       activeModel: "qwen/qwen3-coder",
       providers: {
-        openrouter: { baseUrl: "https://openrouter.ai/api" },
+        openrouter: {
+          displayName: "OpenRouter",
+          baseUrl: "https://openrouter.ai/api",
+          type: "anthropic-compatible",
+        },
       },
     };
     const context: AppContext = {

@@ -2,17 +2,25 @@ import { constants } from "node:fs";
 import { access, chmod, mkdir, readFile, rename, rm, writeFile, } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { configSchema } from "./config-schema.js";
+import { configSchema, legacyConfigSchema, } from "./config-schema.js";
 import { CliError, errorMessage } from "./errors.js";
 import { OPENROUTER } from "../providers/openrouter.js";
+import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
 export function createDefaultConfig() {
     return {
-        version: 1,
+        version: 2,
         activeProvider: null,
         activeModel: null,
         providers: {
             [OPENROUTER.id]: {
+                displayName: OPENROUTER.displayName,
                 baseUrl: OPENROUTER.defaultBaseUrl,
+                type: "anthropic-compatible",
+            },
+            [VERCEL_AI_GATEWAY.id]: {
+                displayName: VERCEL_AI_GATEWAY.displayName,
+                baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
+                type: "anthropic-compatible",
             },
         },
     };
@@ -33,7 +41,9 @@ export class FileConfigStore {
     }
     async initialize() {
         if (await this.exists()) {
-            return { created: false, config: await this.read() };
+            const config = await this.read();
+            await this.write(config);
+            return { created: false, config };
         }
         const config = createDefaultConfig();
         await this.write(config);
@@ -59,12 +69,19 @@ export class FileConfigStore {
             throw new CliError(`Config at ${this.paths.configFile} is not valid JSON. Repair it or move it aside and run "cc-byok init".`, "INVALID_CONFIG", 1, { cause: error });
         }
         const result = configSchema.safeParse(parsed);
+        if (result.success) {
+            return addMissingBuiltInProviders(result.data);
+        }
+        const legacyResult = legacyConfigSchema.safeParse(parsed);
+        if (legacyResult.success) {
+            return migrateLegacyConfig(legacyResult.data);
+        }
         if (!result.success) {
             const issue = result.error.issues[0];
             const location = issue?.path.join(".") || "config";
             throw new CliError(`Config at ${this.paths.configFile} is invalid (${location}: ${issue?.message ?? "unknown error"}).`, "INVALID_CONFIG");
         }
-        return result.data;
+        throw new CliError(`Config at ${this.paths.configFile} is invalid.`, "INVALID_CONFIG");
     }
     async write(config) {
         const validated = configSchema.parse(config);
@@ -90,5 +107,39 @@ export class FileConfigStore {
             throw new CliError(`Could not write config at ${this.paths.configFile}: ${errorMessage(error)}`, "INVALID_CONFIG", 1, { cause: error });
         }
     }
+}
+function migrateLegacyConfig(legacy) {
+    const providers = Object.fromEntries(Object.entries(legacy.providers).map(([id, provider]) => [
+        id,
+        {
+            displayName: id === OPENROUTER.id ? OPENROUTER.displayName : id,
+            baseUrl: provider.baseUrl,
+            type: "anthropic-compatible",
+        },
+    ]));
+    return addMissingBuiltInProviders({
+        version: 2,
+        activeProvider: legacy.activeProvider,
+        activeModel: legacy.activeModel,
+        providers,
+    });
+}
+function addMissingBuiltInProviders(config) {
+    return {
+        ...config,
+        providers: {
+            [OPENROUTER.id]: {
+                displayName: OPENROUTER.displayName,
+                baseUrl: OPENROUTER.defaultBaseUrl,
+                type: "anthropic-compatible",
+            },
+            [VERCEL_AI_GATEWAY.id]: {
+                displayName: VERCEL_AI_GATEWAY.displayName,
+                baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
+                type: "anthropic-compatible",
+            },
+            ...config.providers,
+        },
+    };
 }
 //# sourceMappingURL=config.js.map

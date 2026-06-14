@@ -1,5 +1,7 @@
 # Usage
 
+This guide describes the provider-neutral workflow for `cc-byok` v0.2.0.
+
 ## Initial Setup
 
 ### 1. Initialize Configuration
@@ -14,21 +16,35 @@ This creates:
 ~/.cc-byok/config.json
 ```
 
-The file contains the OpenRouter base URL and active model selection. It never
-contains your API key.
+The file contains built-in provider definitions, custom gateway definitions, and
+the active provider and model. It never contains API keys.
 
-Running `init` again leaves an existing valid configuration unchanged.
+Running `init` again preserves your selection and custom providers. It also
+migrates older config formats and adds missing built-in providers.
 
-### 2. Store an OpenRouter API Key
+### 2. Configure a Provider
 
-Create an API key in your OpenRouter account, then run:
+Choose one built-in provider:
 
 ```bash
+# OpenRouter
 cc-byok provider add openrouter
+
+# Vercel AI Gateway
+cc-byok provider add vercel
 ```
 
-The prompt hides the key while you type. The key is stored under service
-`cc-byok` in your operating system keychain.
+For a custom Anthropic-compatible gateway:
+
+```bash
+cc-byok provider add team-gateway \
+  --base-url https://gateway.example.com \
+  --display-name "Team Gateway"
+```
+
+The prompt hides the provider key while you type. The key is stored under
+service `cc-byok`, using the provider ID as its account, in your operating
+system keychain.
 
 Running the command when a key already exists asks for confirmation before
 replacing it.
@@ -36,20 +52,22 @@ replacing it.
 ### 3. Select a Model
 
 ```bash
-cc-byok use openrouter <model-id>
+cc-byok use <provider-id> <model-id>
 ```
 
-Example:
+Examples:
 
 ```bash
 cc-byok use openrouter qwen/qwen3-coder
+cc-byok use vercel <provider/model-id>
+cc-byok use team-gateway <provider/model-id>
 ```
 
-Use the exact model ID listed by OpenRouter. Selecting a model updates only the
-non-secret config file and does not make a network request.
+Use the exact model ID accepted by the selected provider. Selecting a model
+updates only the non-secret config file and does not make a network request.
 
 Claude Code depends heavily on reliable tool calling. A model may be available
-through OpenRouter but still perform poorly in coding-agent workflows.
+through a provider but still perform poorly in coding-agent workflows.
 
 ### 4. Check Status
 
@@ -101,12 +119,26 @@ session.
 Select another model and launch again:
 
 ```bash
-cc-byok use openrouter anthropic/claude-sonnet-4
+cc-byok use <provider-id> <new-model-id>
 cc-byok launch
 ```
 
-The stored OpenRouter key is reused. You do not need to run `provider add` when
+The stored provider key is reused. You do not need to run `provider add` when
 only changing models.
+
+## Switch Providers
+
+Configure the destination provider once, then select it with a model:
+
+```bash
+cc-byok provider add vercel
+cc-byok use vercel <provider/model-id>
+cc-byok status
+cc-byok launch
+```
+
+Switching providers does not delete credentials or configuration for the
+previous provider.
 
 ## List Providers
 
@@ -114,15 +146,19 @@ only changing models.
 cc-byok provider list
 ```
 
-The MVP includes OpenRouter only. The active provider is marked in the output.
+The CLI includes OpenRouter and Vercel AI Gateway. Custom Anthropic-compatible
+gateways can also be added from the CLI. The active provider is marked in the
+output.
+
+See [Gateway Providers](gateways.md) for setup commands.
 
 ## How Routing Works
 
 The launched Claude Code process receives:
 
 ```text
-ANTHROPIC_BASE_URL=https://openrouter.ai/api
-ANTHROPIC_AUTH_TOKEN=<stored OpenRouter key>
+ANTHROPIC_BASE_URL=<selected provider base URL>
+ANTHROPIC_AUTH_TOKEN=<stored provider key>
 ANTHROPIC_API_KEY=
 ANTHROPIC_MODEL=<selected model>
 ```
@@ -131,7 +167,7 @@ ANTHROPIC_MODEL=<selected model>
 from falling back to an Anthropic API key inherited from your shell.
 
 `cc-byok` does not run a proxy and does not send network requests itself. Claude
-Code connects directly to OpenRouter.
+Code connects directly to the selected provider or gateway.
 
 ## Troubleshooting
 
@@ -163,7 +199,7 @@ cc-byok launch
 Run:
 
 ```bash
-cc-byok use openrouter <model-id>
+cc-byok use <provider-id> <model-id>
 ```
 
 ### API Key Is Missing
@@ -171,8 +207,10 @@ cc-byok use openrouter <model-id>
 Run:
 
 ```bash
-cc-byok provider add openrouter
+cc-byok provider add <provider-id>
 ```
+
+For built-ins, use `openrouter` or `vercel`.
 
 ### Authentication or Model-Not-Found Errors
 
@@ -184,6 +222,13 @@ If Claude Code was previously logged into an Anthropic account:
 4. Start it again with `cc-byok launch`.
 
 Cached Anthropic authentication can conflict with `ANTHROPIC_AUTH_TOKEN`.
+
+Also confirm:
+
+- the selected model ID exists on the provider
+- the provider key is active
+- the account has available credit or budget
+- a custom gateway implements Anthropic `/v1/messages`, streaming, and tools
 
 ### Inspect Configuration
 

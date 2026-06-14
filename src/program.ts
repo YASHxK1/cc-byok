@@ -10,8 +10,8 @@ import { runUse } from "./commands/use.js";
 export function createProgram(context: AppContext): Command {
   const program = new Command()
     .name("cc-byok")
-    .description("Use Claude Code with your own OpenRouter API key")
-    .version("0.1.0");
+    .description("Use Claude Code with BYOK providers and compatible gateways")
+    .version("0.2.0");
 
   program
     .command("init")
@@ -24,9 +24,16 @@ export function createProgram(context: AppContext): Command {
 
   provider
     .command("add")
-    .description("Securely store a provider API key")
+    .description("Add a built-in or custom gateway and securely store its API key")
     .argument("<name>", "provider name")
-    .action((name: string) => runProviderAdd(context, name));
+    .option("--base-url <url>", "Anthropic-compatible base URL for a custom gateway")
+    .option("--display-name <name>", "display name for a custom gateway")
+    .action(
+      (
+        name: string,
+        options: { baseUrl?: string; displayName?: string },
+      ) => runProviderAdd(context, name, options),
+    );
 
   provider
     .command("list")

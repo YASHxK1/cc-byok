@@ -3,6 +3,9 @@
 This guide explains how to install `cc-byok`, add an OpenRouter API key, select
 an OpenRouter model, and chat with that model through Claude Code.
 
+This guide is specifically for OpenRouter. For Vercel AI Gateway or a custom
+gateway, see [Gateway Providers](gateways.md).
+
 ## 1. Install the Requirements
 
 You need:
@@ -84,11 +87,11 @@ cc-byok init
 This creates the non-secret configuration file:
 
 ```text
-%USERPROFILE%\.cc-byok\config.jsone
+%USERPROFILE%\.cc-byok\config.json
 ```
 
-The file stores the active provider, model, and OpenRouter base URL. It does not
-store your API key.
+The file stores built-in and custom provider definitions plus the active
+provider and model. It does not store API keys.
 
 ## 5. Add the OpenRouter API Key
 
@@ -165,6 +168,9 @@ You can also list configured providers:
 ```powershell
 cc-byok provider list
 ```
+
+The list includes the built-in OpenRouter and Vercel AI Gateway entries, plus
+any custom gateways you have added.
 
 ## 9. Start Claude Code
 

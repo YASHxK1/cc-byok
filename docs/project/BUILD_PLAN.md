@@ -1,5 +1,9 @@
 # cc-byok Build Plan
 
+> Historical document: this plan describes the original OpenRouter-only MVP.
+> Vercel AI Gateway and custom gateway support were added in v0.2.0. See
+> [../gateways.md](../gateways.md) for current behavior.
+
 ## 1. Product Boundary
 
 Build `cc-byok` as a thin CLI wrapper around Claude Code.

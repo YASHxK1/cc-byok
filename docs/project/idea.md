@@ -1,3 +1,7 @@
+> Historical document: this is the original product exploration and does not
+> fully describe current v0.2.0 behavior. See [../usage.md](../usage.md) and
+> [../gateways.md](../gateways.md).
+
 Yes. Your idea should be structured as a **CLI-based model router for Claude Code**, not as a replacement for Claude Code.
 
 The CLI’s job is to sit between the user and Claude Code, configure the right provider/model, optionally start a local gateway, and then launch Claude Code with the correct environment variables. Claude Code already supports request routing/model configuration through environment variables like `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, and `ANTHROPIC_MODEL`; Anthropic’s docs also describe gateway usage for routing Claude Code traffic. ([Claude Code][1])

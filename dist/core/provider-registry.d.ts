@@ -16,6 +16,10 @@ export declare function getProviderDefinition(id: string): ProviderDefinition;
 export declare function requireConfiguredProvider(config: Config, id: string): {
     definition: ProviderDefinition;
     config: {
+        displayName: string;
         baseUrl: string;
+        type: "anthropic-compatible";
     };
 };
+export declare function isBuiltInProvider(id: string): boolean;
+export declare function getBuiltInProvider(id: string): ProviderDefinition | null;

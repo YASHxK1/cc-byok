@@ -10,10 +10,15 @@ import {
 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { type Config, configSchema } from "./config-schema.js";
+import {
+  type Config,
+  configSchema,
+  legacyConfigSchema,
+} from "./config-schema.js";
 import { CliError, errorMessage } from "./errors.js";
 import type { AppPaths } from "./paths.js";
 import { OPENROUTER } from "../providers/openrouter.js";
+import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
 
 export interface ConfigStore {
   exists(): Promise<boolean>;
@@ -24,12 +29,19 @@ export interface ConfigStore {
 
 export function createDefaultConfig(): Config {
   return {
-    version: 1,
+    version: 2,
     activeProvider: null,
     activeModel: null,
     providers: {
       [OPENROUTER.id]: {
+        displayName: OPENROUTER.displayName,
         baseUrl: OPENROUTER.defaultBaseUrl,
+        type: "anthropic-compatible",
+      },
+      [VERCEL_AI_GATEWAY.id]: {
+        displayName: VERCEL_AI_GATEWAY.displayName,
+        baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
+        type: "anthropic-compatible",
       },
     },
   };
@@ -49,7 +61,9 @@ export class FileConfigStore implements ConfigStore {
 
   async initialize(): Promise<{ created: boolean; config: Config }> {
     if (await this.exists()) {
-      return { created: false, config: await this.read() };
+      const config = await this.read();
+      await this.write(config);
+      return { created: false, config };
     }
 
     const config = createDefaultConfig();
@@ -90,6 +104,15 @@ export class FileConfigStore implements ConfigStore {
     }
 
     const result = configSchema.safeParse(parsed);
+    if (result.success) {
+      return addMissingBuiltInProviders(result.data);
+    }
+
+    const legacyResult = legacyConfigSchema.safeParse(parsed);
+    if (legacyResult.success) {
+      return migrateLegacyConfig(legacyResult.data);
+    }
+
     if (!result.success) {
       const issue = result.error.issues[0];
       const location = issue?.path.join(".") || "config";
@@ -99,7 +122,10 @@ export class FileConfigStore implements ConfigStore {
       );
     }
 
-    return result.data;
+    throw new CliError(
+      `Config at ${this.paths.configFile} is invalid.`,
+      "INVALID_CONFIG",
+    );
   }
 
   async write(config: Config): Promise<void> {
@@ -135,4 +161,45 @@ export class FileConfigStore implements ConfigStore {
       );
     }
   }
+}
+
+function migrateLegacyConfig(
+  legacy: ReturnType<typeof legacyConfigSchema.parse>,
+): Config {
+  const providers = Object.fromEntries(
+    Object.entries(legacy.providers).map(([id, provider]) => [
+      id,
+      {
+        displayName: id === OPENROUTER.id ? OPENROUTER.displayName : id,
+        baseUrl: provider.baseUrl,
+        type: "anthropic-compatible" as const,
+      },
+    ]),
+  );
+
+  return addMissingBuiltInProviders({
+    version: 2,
+    activeProvider: legacy.activeProvider,
+    activeModel: legacy.activeModel,
+    providers,
+  });
+}
+
+function addMissingBuiltInProviders(config: Config): Config {
+  return {
+    ...config,
+    providers: {
+      [OPENROUTER.id]: {
+        displayName: OPENROUTER.displayName,
+        baseUrl: OPENROUTER.defaultBaseUrl,
+        type: "anthropic-compatible",
+      },
+      [VERCEL_AI_GATEWAY.id]: {
+        displayName: VERCEL_AI_GATEWAY.displayName,
+        baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
+        type: "anthropic-compatible",
+      },
+      ...config.providers,
+    },
+  };
 }

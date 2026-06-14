@@ -1,6 +1,8 @@
-import type { Config } from "./config-schema.js";
+import type { Config, ProviderConfig } from "./config-schema.js";
 import { CliError } from "./errors.js";
+import { buildAnthropicCompatibleEnvironment } from "./env-builder.js";
 import { OPENROUTER } from "../providers/openrouter.js";
+import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
 
 export interface ProviderEnvironmentInput {
   baseUrl: string;
@@ -18,6 +20,7 @@ export interface ProviderDefinition {
 
 const providers = new Map<string, ProviderDefinition>([
   [OPENROUTER.id, OPENROUTER],
+  [VERCEL_AI_GATEWAY.id, VERCEL_AI_GATEWAY],
 ]);
 
 export function listProviderDefinitions(): ProviderDefinition[] {
@@ -36,13 +39,36 @@ export function getProviderDefinition(id: string): ProviderDefinition {
 }
 
 export function requireConfiguredProvider(config: Config, id: string) {
-  const definition = getProviderDefinition(id);
   const providerConfig = config.providers[id];
   if (!providerConfig) {
     throw new CliError(
-      `Provider "${id}" is not configured. Run "cc-byok init" to restore built-in providers.`,
+      `Provider "${id}" is not configured. Add it with "cc-byok provider add ${id} --base-url <url>".`,
       "UNKNOWN_PROVIDER",
     );
   }
-  return { definition, config: providerConfig };
+  return {
+    definition: providers.get(id) ?? customProviderDefinition(id, providerConfig),
+    config: providerConfig,
+  };
+}
+
+export function isBuiltInProvider(id: string): boolean {
+  return providers.has(id);
+}
+
+export function getBuiltInProvider(id: string): ProviderDefinition | null {
+  return providers.get(id) ?? null;
+}
+
+function customProviderDefinition(
+  id: string,
+  config: ProviderConfig,
+): ProviderDefinition {
+  return {
+    id,
+    displayName: config.displayName,
+    defaultBaseUrl: config.baseUrl,
+    routingMode: "custom Anthropic-compatible gateway",
+    buildEnvironment: buildAnthropicCompatibleEnvironment,
+  };
 }

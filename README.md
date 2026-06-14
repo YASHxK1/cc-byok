@@ -1,7 +1,8 @@
 # cc-byok
 
-`cc-byok` launches Claude Code through OpenRouter using an API key stored in your
-operating system keychain.
+`cc-byok` launches Claude Code through OpenRouter, Vercel AI Gateway, or a custom
+Anthropic-compatible gateway. API keys are stored in your operating system
+keychain.
 
 It is a configuration wrapper, not an API proxy. Claude Code connects directly to
 OpenRouter's Anthropic-compatible endpoint.
@@ -10,7 +11,7 @@ OpenRouter's Anthropic-compatible endpoint.
 
 - Node.js 20.17 or newer
 - Claude Code installed and available as `claude`
-- An OpenRouter API key
+- an API key for OpenRouter, Vercel AI Gateway, or your custom gateway
 - A working OS credential store
   - macOS: Keychain
   - Linux: Secret Service through GNOME Keyring, KWallet, or equivalent
@@ -53,6 +54,8 @@ cc-byok launch -- --print "Summarize this repository"
 ```text
 cc-byok init
 cc-byok provider add openrouter
+cc-byok provider add vercel
+cc-byok provider add team-gateway --base-url https://gateway.example.com
 cc-byok provider list
 cc-byok use <provider> <model-id>
 cc-byok status
@@ -61,9 +64,12 @@ cc-byok launch [-- <claude arguments...>]
 
 See the [Usage Guide](docs/usage.md) for command details and common workflows.
 
-Non-secret configuration is stored in `~/.cc-byok/config.json`. API keys are
-stored under service `cc-byok` in the OS keychain and are never written to the
-config file.
+Non-secret configuration is stored in `~/.cc-byok/config.json`. Each provider's
+API key is stored under service `cc-byok` in the OS keychain and is never written
+to the config file.
+
+See [Gateway Providers](docs/gateways.md) for Vercel AI Gateway and custom
+gateway setup.
 
 ## How Launching Works
 

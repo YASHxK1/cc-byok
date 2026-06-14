@@ -1,7 +1,7 @@
 {
   "name": "cc-byok",
-  "version": "0.1.0",
-  "description": "BYOK model launcher for Claude Code",
+  "version": "0.2.0",
+  "description": "BYOK provider and gateway launcher for Claude Code",
   "type": "module",
   "bin": {
     "cc-byok": "./dist/cli.js"

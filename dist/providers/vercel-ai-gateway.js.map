@@ -1,0 +1,1 @@
+{"version":3,"file":"vercel-ai-gateway.js","sourceRoot":"","sources":["../../src/providers/vercel-ai-gateway.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,mCAAmC,EAAE,MAAM,wBAAwB,CAAC;AAG7E,MAAM,CAAC,MAAM,iBAAiB,GAAuB;IACnD,EAAE,EAAE,QAAQ;IACZ,WAAW,EAAE,mBAAmB;IAChC,cAAc,EAAE,8BAA8B;IAC9C,WAAW,EAAE,qCAAqC;IAClD,gBAAgB,EAAE,mCAAmC;CACtD,CAAC"}

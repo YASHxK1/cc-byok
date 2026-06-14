@@ -68,6 +68,55 @@ describe("MVP workflow", () => {
     });
     expect(fixture.launcher.request).toBeNull();
   });
+
+  it("adds and launches a custom Anthropic-compatible gateway", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+
+    await runProviderAdd(fixture.context, "team-gateway", {
+      baseUrl: "https://gateway.example.com/",
+      displayName: "Team Gateway",
+    });
+    await runUse(
+      fixture.context,
+      "team-gateway",
+      "anthropic/claude-sonnet-4.6",
+    );
+    await runLaunch(fixture.context, []);
+
+    const config = await fixture.context.config.read();
+    expect(config.providers["team-gateway"]).toEqual({
+      displayName: "Team Gateway",
+      baseUrl: "https://gateway.example.com",
+      type: "anthropic-compatible",
+    });
+    expect(fixture.launcher.request?.env).toMatchObject({
+      ANTHROPIC_BASE_URL: "https://gateway.example.com",
+      ANTHROPIC_AUTH_TOKEN: "test-api-key",
+      ANTHROPIC_API_KEY: "",
+      ANTHROPIC_MODEL: "anthropic/claude-sonnet-4.6",
+    });
+  });
+
+  it("configures the built-in Vercel AI Gateway", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+
+    await runProviderAdd(fixture.context, "vercel");
+    await runUse(
+      fixture.context,
+      "vercel",
+      "anthropic/claude-sonnet-4.6",
+    );
+    await runLaunch(fixture.context, []);
+
+    expect(fixture.launcher.request?.env).toMatchObject({
+      ANTHROPIC_BASE_URL: "https://ai-gateway.vercel.sh",
+      ANTHROPIC_AUTH_TOKEN: "test-api-key",
+      ANTHROPIC_API_KEY: "",
+      ANTHROPIC_MODEL: "anthropic/claude-sonnet-4.6",
+    });
+  });
 });
 
 class MemorySecretStore implements SecretStore {

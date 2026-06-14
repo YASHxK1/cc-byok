@@ -12,7 +12,7 @@ afterEach(async () => {
 });
 
 describe("FileConfigStore", () => {
-  it("initializes a versioned OpenRouter config without selecting a model", async () => {
+  it("initializes built-in gateways without selecting a model", async () => {
     const directory = await temporaryDirectory();
     const configFile = join(directory, "config.json");
     const store = new FileConfigStore({ configDir: directory, configFile });
@@ -21,11 +21,20 @@ describe("FileConfigStore", () => {
 
     expect(result.created).toBe(true);
     expect(result.config).toEqual({
-      version: 1,
+      version: 2,
       activeProvider: null,
       activeModel: null,
       providers: {
-        openrouter: { baseUrl: "https://openrouter.ai/api" },
+        openrouter: {
+          displayName: "OpenRouter",
+          baseUrl: "https://openrouter.ai/api",
+          type: "anthropic-compatible",
+        },
+        vercel: {
+          displayName: "Vercel AI Gateway",
+          baseUrl: "https://ai-gateway.vercel.sh",
+          type: "anthropic-compatible",
+        },
       },
     });
     expect(JSON.parse(await readFile(configFile, "utf8"))).toEqual(result.config);
@@ -37,11 +46,20 @@ describe("FileConfigStore", () => {
     const store = new FileConfigStore({ configDir: directory, configFile });
     await store.initialize();
     const configured = {
-      version: 1 as const,
+      version: 2 as const,
       activeProvider: "openrouter",
       activeModel: "anthropic/claude-sonnet-4",
       providers: {
-        openrouter: { baseUrl: "https://openrouter.ai/api" },
+        openrouter: {
+          displayName: "OpenRouter",
+          baseUrl: "https://openrouter.ai/api",
+          type: "anthropic-compatible" as const,
+        },
+        vercel: {
+          displayName: "Vercel AI Gateway",
+          baseUrl: "https://ai-gateway.vercel.sh",
+          type: "anthropic-compatible" as const,
+        },
       },
     };
     await store.write(configured);
@@ -50,6 +68,35 @@ describe("FileConfigStore", () => {
 
     expect(result.created).toBe(false);
     expect(result.config).toEqual(configured);
+  });
+
+  it("migrates v1 OpenRouter config and adds Vercel AI Gateway", async () => {
+    const directory = await temporaryDirectory();
+    const configFile = join(directory, "config.json");
+    await writeFile(
+      configFile,
+      JSON.stringify({
+        version: 1,
+        activeProvider: "openrouter",
+        activeModel: "qwen/qwen3-coder",
+        providers: {
+          openrouter: { baseUrl: "https://openrouter.ai/api" },
+        },
+      }),
+      "utf8",
+    );
+    const store = new FileConfigStore({ configDir: directory, configFile });
+
+    const config = await store.read();
+
+    expect(config.version).toBe(2);
+    expect(config.activeModel).toBe("qwen/qwen3-coder");
+    expect(config.providers.openrouter?.displayName).toBe("OpenRouter");
+    expect(config.providers.vercel).toEqual({
+      displayName: "Vercel AI Gateway",
+      baseUrl: "https://ai-gateway.vercel.sh",
+      type: "anthropic-compatible",
+    });
   });
 
   it("returns a repair-oriented error for malformed JSON", async () => {
