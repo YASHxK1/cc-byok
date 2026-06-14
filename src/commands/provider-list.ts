@@ -9,7 +9,7 @@ export async function runProviderList(context: AppContext): Promise<void> {
     const provider = requireConfiguredProvider(config, id).definition;
     const active = config.activeProvider === id ? " (active)" : "";
     context.output.log(
-      `  ${provider.displayName} [${id}]${active}\n    ${providerConfig.baseUrl}\n    ${provider.routingMode}`,
+      `  ${provider.displayName} [${id}]${active}\n    ${providerConfig.baseUrl}\n    ${providerConfig.type}; ${provider.routingMode}`,
     );
   }
 }

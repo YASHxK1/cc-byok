@@ -1,5 +1,6 @@
 import { CliError } from "../core/errors.js";
 import { getBuiltInProvider, isBuiltInProvider, requireConfiguredProvider, } from "../core/provider-registry.js";
+import { providerTypeSchema, } from "../core/config-schema.js";
 export async function runProviderAdd(context, providerId, options = {}) {
     const cleanProviderId = providerId.trim().toLowerCase();
     validateProviderId(cleanProviderId);
@@ -18,16 +19,16 @@ export async function runProviderAdd(context, providerId, options = {}) {
                 [cleanProviderId]: {
                     displayName: options.displayName?.trim() || cleanProviderId,
                     baseUrl,
-                    type: "anthropic-compatible",
+                    type: options.type ?? "anthropic-compatible",
                 },
             },
         };
     }
     else if (isBuiltInProvider(cleanProviderId) &&
-        (options.baseUrl || options.displayName)) {
+        (options.baseUrl || options.displayName || options.type)) {
         throw new CliError(`Built-in provider "${cleanProviderId}" has managed settings and does not accept custom URL or display-name options.`, "INVALID_INPUT");
     }
-    else if (existing && (options.baseUrl || options.displayName)) {
+    else if (existing && (options.baseUrl || options.displayName || options.type)) {
         const baseUrl = options.baseUrl
             ? validateBaseUrl(options.baseUrl)
             : existing.baseUrl;
@@ -39,11 +40,19 @@ export async function runProviderAdd(context, providerId, options = {}) {
                     ...existing,
                     displayName: options.displayName?.trim() || existing.displayName,
                     baseUrl,
+                    type: options.type ?? existing.type,
                 },
             },
         };
     }
     const provider = requireConfiguredProvider(config, cleanProviderId).definition;
+    if (provider.type === "ollama") {
+        if (!existing || options.baseUrl || options.displayName || options.type) {
+            await context.config.write(config);
+        }
+        context.output.log(`${provider.displayName} configured. This provider type does not require an API key.`);
+        return;
+    }
     if (await context.secrets.has(cleanProviderId)) {
         const replace = await context.prompts.confirmReplace(provider.displayName);
         if (!replace) {
@@ -55,10 +64,17 @@ export async function runProviderAdd(context, providerId, options = {}) {
         throw new CliError("API key cannot be empty.", "INVALID_INPUT");
     }
     await context.secrets.set(cleanProviderId, apiKey);
-    if (!existing || options.baseUrl || options.displayName) {
+    if (!existing || options.baseUrl || options.displayName || options.type) {
         await context.config.write(config);
     }
     context.output.log(`${provider.displayName} API key saved securely.`);
+}
+export function parseProviderType(value) {
+    const result = providerTypeSchema.safeParse(value);
+    if (!result.success) {
+        throw new CliError(`Invalid provider type "${value}". Use anthropic-compatible, openai-compatible, ollama, ai-gateway, or custom.`, "INVALID_INPUT");
+    }
+    return result.data;
 }
 function validateProviderId(providerId) {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(providerId)) {

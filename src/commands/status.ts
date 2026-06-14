@@ -1,6 +1,7 @@
 import type { AppContext } from "../app-context.js";
 import { CliError } from "../core/errors.js";
 import { requireConfiguredProvider } from "../core/provider-registry.js";
+import { resolveTarget } from "../core/target-registry.js";
 
 export async function runStatus(context: AppContext): Promise<void> {
   const config = await context.config.read();
@@ -12,14 +13,21 @@ export async function runStatus(context: AppContext): Promise<void> {
   }
 
   const provider = requireConfiguredProvider(config, config.activeProvider);
-  const hasKey = await context.secrets.has(config.activeProvider);
+  const { target } = resolveTarget(config, config.activeTarget);
+  const baseUrl = provider.definition.resolveBaseUrl(
+    provider.config.baseUrl,
+    target.envProfile,
+  );
   context.output.log(
     [
       `Config: ${context.paths.configFile}`,
-      `Provider: ${provider.definition.displayName} [${config.activeProvider}]`,
-      `Model: ${config.activeModel}`,
-      `Base URL: ${provider.config.baseUrl}`,
-      `API key: ${hasKey ? "stored" : "missing"}`,
+      `Active target: ${target.id}`,
+      `Active provider: ${config.activeProvider}`,
+      `Active model: ${config.activeModel}`,
+      `Provider type: ${provider.config.type}`,
+      `Target env profile: ${target.envProfile}`,
+      `Base URL: ${baseUrl}`,
+      "API key: ************",
     ].join("\n"),
   );
 }

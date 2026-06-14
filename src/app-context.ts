@@ -1,5 +1,5 @@
 import { FileConfigStore, type ConfigStore } from "./core/config.js";
-import { ClaudeProcessLauncher, type ProcessLauncher } from "./core/launcher.js";
+import { ChildProcessLauncher, type ProcessLauncher } from "./core/launcher.js";
 import { getAppPaths, type AppPaths } from "./core/paths.js";
 import { KeyringSecretStore, type SecretStore } from "./core/secret-store.js";
 import { InquirerPromptService, type PromptService } from "./ui/prompt.js";
@@ -28,7 +28,7 @@ export function createAppContext(): AppContext {
     config: new FileConfigStore(paths),
     secrets: new KeyringSecretStore(),
     prompts: new InquirerPromptService(),
-    launcher: new ClaudeProcessLauncher(),
+    launcher: new ChildProcessLauncher(),
     output: console,
     cwd: process.cwd(),
     env: process.env,

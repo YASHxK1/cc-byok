@@ -1,2 +1,7 @@
 import type { AppContext } from "../app-context.js";
-export declare function runLaunch(context: AppContext, claudeArgs: string[]): Promise<void>;
+export interface LaunchOptions {
+    provider?: string;
+    model?: string;
+    force?: boolean;
+}
+export declare function runLaunch(context: AppContext, targetId: string | undefined, targetArgs: string[], options?: LaunchOptions): Promise<void>;

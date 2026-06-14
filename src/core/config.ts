@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import {
   access,
@@ -9,11 +10,11 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { randomUUID } from "node:crypto";
 import {
   type Config,
   configSchema,
   legacyConfigSchema,
+  v2ConfigSchema,
 } from "./config-schema.js";
 import { CliError, errorMessage } from "./errors.js";
 import type { AppPaths } from "./paths.js";
@@ -29,21 +30,12 @@ export interface ConfigStore {
 
 export function createDefaultConfig(): Config {
   return {
-    version: 2,
+    version: 3,
+    activeTarget: "claude",
     activeProvider: null,
     activeModel: null,
-    providers: {
-      [OPENROUTER.id]: {
-        displayName: OPENROUTER.displayName,
-        baseUrl: OPENROUTER.defaultBaseUrl,
-        type: "anthropic-compatible",
-      },
-      [VERCEL_AI_GATEWAY.id]: {
-        displayName: VERCEL_AI_GATEWAY.displayName,
-        baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
-        type: "anthropic-compatible",
-      },
-    },
+    providers: builtInProviderConfigs(),
+    targets: {},
   };
 }
 
@@ -79,7 +71,7 @@ export class FileConfigStore implements ConfigStore {
       const nodeError = error as NodeJS.ErrnoException;
       if (nodeError.code === "ENOENT") {
         throw new CliError(
-          `cc-byok is not initialized. Run "cc-byok init".`,
+          'cc-byok is not initialized. Run "cc-byok init".',
           "NOT_INITIALIZED",
         );
       }
@@ -103,27 +95,26 @@ export class FileConfigStore implements ConfigStore {
       );
     }
 
-    const result = configSchema.safeParse(parsed);
-    if (result.success) {
-      return addMissingBuiltInProviders(result.data);
+    const current = configSchema.safeParse(parsed);
+    if (current.success) return addMissingBuiltIns(current.data);
+
+    const v2 = v2ConfigSchema.safeParse(parsed);
+    if (v2.success) {
+      return addMissingBuiltIns({
+        ...v2.data,
+        version: 3,
+        activeTarget: "claude",
+        targets: {},
+      });
     }
 
-    const legacyResult = legacyConfigSchema.safeParse(parsed);
-    if (legacyResult.success) {
-      return migrateLegacyConfig(legacyResult.data);
-    }
+    const legacy = legacyConfigSchema.safeParse(parsed);
+    if (legacy.success) return migrateLegacyConfig(legacy.data);
 
-    if (!result.success) {
-      const issue = result.error.issues[0];
-      const location = issue?.path.join(".") || "config";
-      throw new CliError(
-        `Config at ${this.paths.configFile} is invalid (${location}: ${issue?.message ?? "unknown error"}).`,
-        "INVALID_CONFIG",
-      );
-    }
-
+    const issue = current.error.issues[0];
+    const location = issue?.path.join(".") || "config";
     throw new CliError(
-      `Config at ${this.paths.configFile} is invalid.`,
+      `Config at ${this.paths.configFile} is invalid (${location}: ${issue?.message ?? "unknown error"}).`,
       "INVALID_CONFIG",
     );
   }
@@ -137,9 +128,7 @@ export class FileConfigStore implements ConfigStore {
     );
 
     await mkdir(directory, { recursive: true, mode: 0o700 });
-    if (process.platform !== "win32") {
-      await chmod(directory, 0o700);
-    }
+    if (process.platform !== "win32") await chmod(directory, 0o700);
 
     try {
       await writeFile(tempFile, `${JSON.stringify(validated, null, 2)}\n`, {
@@ -177,29 +166,37 @@ function migrateLegacyConfig(
     ]),
   );
 
-  return addMissingBuiltInProviders({
-    version: 2,
+  return addMissingBuiltIns({
+    version: 3,
+    activeTarget: "claude",
     activeProvider: legacy.activeProvider,
     activeModel: legacy.activeModel,
     providers,
+    targets: {},
   });
 }
 
-function addMissingBuiltInProviders(config: Config): Config {
+function addMissingBuiltIns(config: Config): Config {
   return {
     ...config,
     providers: {
-      [OPENROUTER.id]: {
-        displayName: OPENROUTER.displayName,
-        baseUrl: OPENROUTER.defaultBaseUrl,
-        type: "anthropic-compatible",
-      },
-      [VERCEL_AI_GATEWAY.id]: {
-        displayName: VERCEL_AI_GATEWAY.displayName,
-        baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
-        type: "anthropic-compatible",
-      },
       ...config.providers,
+      ...builtInProviderConfigs(),
+    },
+  };
+}
+
+function builtInProviderConfigs(): Config["providers"] {
+  return {
+    [OPENROUTER.id]: {
+      displayName: OPENROUTER.displayName,
+      baseUrl: OPENROUTER.defaultBaseUrl,
+      type: OPENROUTER.type,
+    },
+    [VERCEL_AI_GATEWAY.id]: {
+      displayName: VERCEL_AI_GATEWAY.displayName,
+      baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
+      type: VERCEL_AI_GATEWAY.type,
     },
   };
 }

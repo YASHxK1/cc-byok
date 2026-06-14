@@ -5,7 +5,7 @@ export async function runProviderList(context) {
     for (const [id, providerConfig] of Object.entries(config.providers)) {
         const provider = requireConfiguredProvider(config, id).definition;
         const active = config.activeProvider === id ? " (active)" : "";
-        context.output.log(`  ${provider.displayName} [${id}]${active}\n    ${providerConfig.baseUrl}\n    ${provider.routingMode}`);
+        context.output.log(`  ${provider.displayName} [${id}]${active}\n    ${providerConfig.baseUrl}\n    ${providerConfig.type}; ${provider.routingMode}`);
     }
 }
 //# sourceMappingURL=provider-list.js.map

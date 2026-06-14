@@ -1,21 +1,21 @@
-import type { Config, ProviderConfig } from "./config-schema.js";
+import type {
+  Config,
+  EnvProfile,
+  ProviderConfig,
+  ProviderType,
+} from "./config-schema.js";
 import { CliError } from "./errors.js";
-import { buildAnthropicCompatibleEnvironment } from "./env-builder.js";
 import { OPENROUTER } from "../providers/openrouter.js";
 import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
-
-export interface ProviderEnvironmentInput {
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-}
 
 export interface ProviderDefinition {
   id: string;
   displayName: string;
   defaultBaseUrl: string;
+  type: ProviderType;
   routingMode: string;
-  buildEnvironment(input: ProviderEnvironmentInput): Record<string, string>;
+  supportedProfiles: EnvProfile[];
+  resolveBaseUrl(configuredBaseUrl: string, profile: EnvProfile): string;
 }
 
 const providers = new Map<string, ProviderDefinition>([
@@ -60,6 +60,29 @@ export function getBuiltInProvider(id: string): ProviderDefinition | null {
   return providers.get(id) ?? null;
 }
 
+export function validateCompatibility(
+  provider: ProviderDefinition,
+  profile: EnvProfile,
+): { compatible: boolean; unknown: boolean; message?: string } {
+  if (profile === "custom" || provider.type === "custom") {
+    return {
+      compatible: true,
+      unknown: true,
+      message: `Compatibility between provider "${provider.id}" and the custom environment profile is unknown.`,
+    };
+  }
+
+  if (provider.supportedProfiles.includes(profile)) {
+    return { compatible: true, unknown: false };
+  }
+
+  return {
+    compatible: false,
+    unknown: false,
+    message: `Target expects the "${profile}" API profile, but provider "${provider.id}" is ${provider.type}.`,
+  };
+}
+
 function customProviderDefinition(
   id: string,
   config: ProviderConfig,
@@ -68,7 +91,24 @@ function customProviderDefinition(
     id,
     displayName: config.displayName,
     defaultBaseUrl: config.baseUrl,
-    routingMode: "custom Anthropic-compatible gateway",
-    buildEnvironment: buildAnthropicCompatibleEnvironment,
+    type: config.type,
+    routingMode: `custom ${config.type} gateway`,
+    supportedProfiles: profilesForType(config.type),
+    resolveBaseUrl: (baseUrl) => baseUrl,
   };
+}
+
+function profilesForType(type: ProviderType): EnvProfile[] {
+  switch (type) {
+    case "anthropic-compatible":
+      return ["anthropic"];
+    case "openai-compatible":
+      return ["openai"];
+    case "ollama":
+      return ["ollama"];
+    case "ai-gateway":
+      return ["anthropic", "openai"];
+    case "custom":
+      return ["custom"];
+  }
 }

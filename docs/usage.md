@@ -1,247 +1,120 @@
 # Usage
 
-This guide describes the provider-neutral workflow for `cc-byok` v0.2.0.
-
-## Initial Setup
-
-### 1. Initialize Configuration
+## Setup
 
 ```bash
 cc-byok init
-```
-
-This creates:
-
-```text
-~/.cc-byok/config.json
-```
-
-The file contains built-in provider definitions, custom gateway definitions, and
-the active provider and model. It never contains API keys.
-
-Running `init` again preserves your selection and custom providers. It also
-migrates older config formats and adds missing built-in providers.
-
-### 2. Configure a Provider
-
-Choose one built-in provider:
-
-```bash
-# OpenRouter
 cc-byok provider add openrouter
-
-# Vercel AI Gateway
-cc-byok provider add vercel
-```
-
-For a custom Anthropic-compatible gateway:
-
-```bash
-cc-byok provider add team-gateway \
-  --base-url https://gateway.example.com \
-  --display-name "Team Gateway"
-```
-
-The prompt hides the provider key while you type. The key is stored under
-service `cc-byok`, using the provider ID as its account, in your operating
-system keychain.
-
-Running the command when a key already exists asks for confirmation before
-replacing it.
-
-### 3. Select a Model
-
-```bash
-cc-byok use <provider-id> <model-id>
-```
-
-Examples:
-
-```bash
-cc-byok use openrouter qwen/qwen3-coder
-cc-byok use vercel <provider/model-id>
-cc-byok use team-gateway <provider/model-id>
-```
-
-Use the exact model ID accepted by the selected provider. Selecting a model
-updates only the non-secret config file and does not make a network request.
-
-Claude Code depends heavily on reliable tool calling. A model may be available
-through a provider but still perform poorly in coding-agent workflows.
-
-### 4. Check Status
-
-```bash
+cc-byok use openrouter anthropic/claude-sonnet-4.5
 cc-byok status
 ```
 
-The command displays:
+Non-secret configuration is stored in `~/.cc-byok/config.json`. Provider keys
+are stored in the OS keychain under service `cc-byok`.
 
-- config file path
-- active provider
-- active model
-- provider base URL
-- whether an API key is stored
+## Launch
 
-It never displays the API key.
-
-### 5. Launch Claude Code
-
-Run this command from the project directory where you want Claude Code to work:
+New configurations use `claude` as the active target:
 
 ```bash
 cc-byok launch
+cc-byok launch claude
 ```
 
-`cc-byok` launches `claude` in the current directory with terminal input and
-output attached directly.
+Select another target and optionally override the active provider and model for
+that launch:
 
-## Forward Claude Code Arguments
+```bash
+cc-byok launch codex --provider vercel --model openai/gpt-4.1
+cc-byok launch opencode --provider openrouter --model qwen/qwen3-coder
+cc-byok launch codex-app
+```
 
-Place Claude Code arguments after `--`:
+Overrides do not change the active provider or model. An explicitly selected
+target becomes the active target after its process exits.
+
+Pass target arguments after `--`:
+
+```bash
+cc-byok launch claude -- --print "Summarize this repository"
+cc-byok launch codex -- --help
+```
+
+The backward-compatible default target form remains valid:
 
 ```bash
 cc-byok launch -- --print "Summarize this repository"
 ```
 
-Another example:
+## Manage Targets
 
 ```bash
-cc-byok launch -- --model qwen/qwen3-coder
+cc-byok targets list
+cc-byok targets inspect opencode
+cc-byok targets add
+cc-byok targets remove my-agent
 ```
 
-Claude Code command-line options can override environment-based settings. In
-particular, `--model` overrides the model selected with `cc-byok use` for that
-session.
+The add flow asks for:
 
-## Switch Models
+- target ID, display name, command, and description
+- Anthropic, OpenAI, Ollama, or custom environment profile
+- custom base URL, API key, and model variable names when applicable
 
-Select another model and launch again:
+Custom targets cannot use a built-in ID. Removing the active custom target
+restores `claude` as the active target.
 
-```bash
-cc-byok use <provider-id> <new-model-id>
-cc-byok launch
-```
+## Environment Profiles
 
-The stored provider key is reused. You do not need to run `provider add` when
-only changing models.
-
-## Switch Providers
-
-Configure the destination provider once, then select it with a model:
-
-```bash
-cc-byok provider add vercel
-cc-byok use vercel <provider/model-id>
-cc-byok status
-cc-byok launch
-```
-
-Switching providers does not delete credentials or configuration for the
-previous provider.
-
-## List Providers
-
-```bash
-cc-byok provider list
-```
-
-The CLI includes OpenRouter and Vercel AI Gateway. Custom Anthropic-compatible
-gateways can also be added from the CLI. The active provider is marked in the
-output.
-
-See [Gateway Providers](gateways.md) for setup commands.
-
-## How Routing Works
-
-The launched Claude Code process receives:
+Anthropic targets receive:
 
 ```text
-ANTHROPIC_BASE_URL=<selected provider base URL>
-ANTHROPIC_AUTH_TOKEN=<stored provider key>
+ANTHROPIC_BASE_URL=<resolved endpoint>
+ANTHROPIC_AUTH_TOKEN=<keychain value>
 ANTHROPIC_API_KEY=
-ANTHROPIC_MODEL=<selected model>
+ANTHROPIC_MODEL=<model>
 ```
 
-`ANTHROPIC_API_KEY` is deliberately set to an empty value to prevent Claude Code
-from falling back to an Anthropic API key inherited from your shell.
+OpenAI targets receive:
 
-`cc-byok` does not run a proxy and does not send network requests itself. Claude
-Code connects directly to the selected provider or gateway.
+```text
+OPENAI_BASE_URL=<resolved endpoint>
+OPENAI_API_KEY=<keychain value>
+OPENAI_MODEL=<model>
+```
 
-## Troubleshooting
+Ollama targets receive:
 
-### `cc-byok` Is Not Found
+```text
+OLLAMA_HOST=<provider base URL>
+MODEL=<model>
+```
 
-Confirm npm's global executable directory is on your `PATH`, or install from the
-repository with:
+Custom targets receive only their configured mappings. Credentials are loaded
+only when the profile maps an API-key variable.
+
+## Compatibility
+
+Known provider/profile mismatches are blocked because `cc-byok` does not
+translate requests. Use `--force` when a separately installed adapter makes the
+combination valid:
 
 ```bash
-npm install --global .
+cc-byok launch claude --provider my-openai-gateway \
+  --model openai/gpt-4.1 --force
 ```
 
-### Claude Code Is Not Found
+Unknown custom combinations produce a warning and continue.
 
-Install Claude Code and verify:
+## Target Configuration Precedence
 
-```bash
-claude --version
-```
+`cc-byok` supplies provider settings through environment variables. A target
+application may prioritize command-line flags, project configuration, or its own
+credential store over those variables. Consult the target's documentation when
+the selected model or endpoint is not honored.
 
-Then retry:
-
-```bash
-cc-byok launch
-```
-
-### No Active Model Is Selected
-
-Run:
-
-```bash
-cc-byok use <provider-id> <model-id>
-```
-
-### API Key Is Missing
-
-Run:
-
-```bash
-cc-byok provider add <provider-id>
-```
-
-For built-ins, use `openrouter` or `vercel`.
-
-### Authentication or Model-Not-Found Errors
-
-If Claude Code was previously logged into an Anthropic account:
-
-1. Start `claude` normally.
-2. Run `/logout` inside Claude Code.
-3. Exit Claude Code.
-4. Start it again with `cc-byok launch`.
-
-Cached Anthropic authentication can conflict with `ANTHROPIC_AUTH_TOKEN`.
-
-Also confirm:
-
-- the selected model ID exists on the provider
-- the provider key is active
-- the account has available credit or budget
-- a custom gateway implements Anthropic `/v1/messages`, streaming, and tools
-
-### Inspect Configuration
-
-The non-secret config is safe to inspect:
-
-```bash
-cat ~/.cc-byok/config.json
-```
-
-On PowerShell:
-
-```powershell
-Get-Content "$HOME/.cc-byok/config.json"
-```
-
-Do not manually place API keys in this file.
+Codex requires more than `OPENAI_BASE_URL` and `OPENAI_MODEL`. For the `codex`
+and `codex-app` targets, `cc-byok` passes per-process `-c` overrides that select
+the requested model and define a temporary `cc_byok` model provider using the
+selected endpoint, `OPENAI_API_KEY`, and the Responses API. The user's
+`~/.codex/config.toml` is not modified.
