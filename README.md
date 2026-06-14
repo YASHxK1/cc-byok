@@ -1,18 +1,21 @@
 # cc-byok
 
-`cc-byok` is a CLI model router and launcher for coding agents. It selects a
-provider and model, securely reads the provider credential from the operating
-system keychain, builds the environment expected by the target application, and
-launches it with inherited terminal input and output.
+`cc-byok` launches Claude Code through OpenRouter, Vercel AI Gateway, or a custom
+Anthropic-compatible gateway. API keys are stored in your operating system
+keychain.
 
-It is a configuration wrapper, not an API proxy or protocol translator.
+It is a configuration wrapper, not an API proxy. Claude Code connects directly to
+OpenRouter's Anthropic-compatible endpoint.
 
 ## Requirements
 
 - Node.js 20.17 or newer
-- The coding agent you want to launch installed on `PATH`
-- A provider API key, except for providers such as a local Ollama instance
+- Claude Code installed and available as `claude`
+- an API key for OpenRouter, Vercel AI Gateway, or your custom gateway
 - A working OS credential store
+  - macOS: Keychain
+  - Linux: Secret Service through GNOME Keyring, KWallet, or equivalent
+  - Windows: Credential Manager (experimental for this release)
 
 ## Install
 
@@ -20,138 +23,93 @@ It is a configuration wrapper, not an API proxy or protocol translator.
 npm install --global cc-byok
 ```
 
+Install Claude Code separately using its official instructions:
+https://code.claude.com/docs/en/setup
+
+For source installation, platform notes, and setup verification, see
+[Installation](docs/installation.md).
+
+For a complete walkthrough from installation to chatting with an OpenRouter
+model, see the
+[OpenRouter and Claude Code Guide](docs/openrouter-claude-code-guide.md).
+
 ## Quick Start
 
 ```bash
 cc-byok init
 cc-byok provider add openrouter
-cc-byok use openrouter anthropic/claude-sonnet-4.5
+cc-byok use openrouter qwen/qwen3-coder
+cc-byok status
 cc-byok launch
 ```
 
-`cc-byok launch` remains shorthand for launching the active target, which is
-`claude` for new and migrated configurations.
-
-Launch another built-in target:
-
-```bash
-cc-byok launch codex --provider vercel --model openai/gpt-4.1
-cc-byok launch opencode --provider openrouter --model qwen/qwen3-coder
-cc-byok launch codex-app
-```
-
-Forward arguments after `--`:
-
-```bash
-cc-byok launch claude -- --print "Summarize this repository"
-cc-byok launch codex -- --help
-```
-
-The existing default-target form is also preserved:
+Arguments after `launch` are forwarded to Claude Code:
 
 ```bash
 cc-byok launch -- --print "Summarize this repository"
 ```
 
-## Launch Targets
+## Commands
 
-Built-in targets are:
-
-| ID | Command | Environment profile |
-|---|---|---|
-| `claude` | `claude` | Anthropic |
-| `codex` | `codex` | OpenAI |
-| `codex-app` | `codex app` | OpenAI |
-| `opencode` | `opencode` | OpenAI |
-| `hermes` | `hermes` | OpenAI |
-| `openclaw` | `openclaw` | OpenAI |
-
-Manage targets with:
-
-```bash
-cc-byok targets list
-cc-byok targets inspect codex
-cc-byok targets add
-cc-byok targets remove my-agent
-```
-
-`targets add` interactively asks for an ID, display name, executable, optional
-description, and environment profile. A custom profile also asks for the
-environment variable names used for the base URL, API key, and model. Custom
-targets are stored in `~/.cc-byok/config.json`; built-in targets cannot be
-replaced or removed.
-
-An explicitly launched target becomes the active target after the child process
-exits, including when the child returns a nonzero exit code.
-
-## Providers
-
-Configure built-ins:
-
-```bash
+```text
+cc-byok init
 cc-byok provider add openrouter
 cc-byok provider add vercel
-```
-
-Add a custom provider:
-
-```bash
-cc-byok provider add team-gateway \
-  --base-url https://gateway.example.com \
-  --display-name "Team Gateway" \
-  --type openai-compatible
-```
-
-Provider types are `anthropic-compatible`, `openai-compatible`, `ollama`,
-`ai-gateway`, and `custom`. Custom providers default to
-`anthropic-compatible` for backward compatibility. Ollama providers are saved
-without prompting for an API key.
-
-OpenRouter and Vercel AI Gateway expose protocol-specific endpoints:
-
-| Provider | Anthropic profile | OpenAI profile |
-|---|---|---|
-| OpenRouter | `https://openrouter.ai/api` | `https://openrouter.ai/api/v1` |
-| Vercel | `https://ai-gateway.vercel.sh` | `https://ai-gateway.vercel.sh/v1` |
-
-## Compatibility
-
-Before launch, `cc-byok` compares the target environment/API profile with the
-provider capabilities. Known mismatches stop with a clear error:
-
-```bash
-cc-byok launch claude --provider an-openai-only-provider --model some-model
-```
-
-Use `--force` only when an external adapter makes the combination valid:
-
-```bash
-cc-byok launch claude --provider an-openai-only-provider \
-  --model some-model --force
-```
-
-Unknown custom combinations warn and proceed. `--force` does not translate API
-protocols.
-
-## Status And Security
-
-```bash
+cc-byok provider add team-gateway --base-url https://gateway.example.com
+cc-byok provider list
+cc-byok use <provider> <model-id>
 cc-byok status
+cc-byok launch [-- <claude arguments...>]
 ```
 
-Status reports the active target, provider/model, provider type, target
-environment profile, resolved endpoint, and a fixed masked API-key value.
-Credentials are never written to config or printed. They are read from the OS
-keychain only when the selected target requires one.
+See the [Usage Guide](docs/usage.md) for command details and common workflows.
 
-Target applications may apply their own configuration precedence. A target's
-CLI flags or local configuration can override environment-based model settings.
+Non-secret configuration is stored in `~/.cc-byok/config.json`. Each provider's
+API key is stored under service `cc-byok` in the OS keychain and is never written
+to the config file.
 
-For `codex` and `codex-app`, `cc-byok` also supplies temporary Codex
-configuration overrides for `model`, `model_provider`, provider `base_url`,
-authentication environment variable, and the Responses API. This takes
-precedence over the model and provider in `~/.codex/config.toml` without editing
-that file.
+See [Gateway Providers](docs/gateways.md) for Vercel AI Gateway and custom
+gateway setup.
+
+## How Launching Works
+
+The child `claude` process receives:
+
+```text
+ANTHROPIC_BASE_URL=https://openrouter.ai/api
+ANTHROPIC_AUTH_TOKEN=<keychain value>
+ANTHROPIC_API_KEY=
+ANTHROPIC_MODEL=<selected model>
+```
+
+The rest of your environment and the current working directory are preserved.
+Terminal input and output are inherited directly, and `cc-byok` returns Claude
+Code's exit code.
+
+## Troubleshooting
+
+### Authentication conflict
+
+If Claude Code was previously logged into an Anthropic account, start Claude Code
+normally, run `/logout`, exit, and launch it again through `cc-byok`. OpenRouter
+documents cached Anthropic login state as a cause of model-not-found errors.
+
+### Linux keychain unavailable
+
+Install and unlock a Secret Service provider such as GNOME Keyring or KWallet,
+then retry `cc-byok provider add openrouter`.
+
+### Model compatibility
+
+Claude Code relies heavily on native tool use. OpenRouter notes that Claude Code
+is only guaranteed to work with Anthropic's first-party provider; other model IDs
+may connect but behave poorly in coding-agent workflows.
+
+## Security
+
+The API key is read from the OS keychain only when needed and is passed to the
+launched process through its environment. `cc-byok` does not log it, write it to
+configuration, or make network requests itself.
 
 ## Development
 
@@ -160,5 +118,5 @@ npm install
 npm run check
 ```
 
-See [Usage](docs/usage.md), [Gateway Providers](docs/gateways.md), and
-[CONTRIBUTING](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the repository structure and pull
+request guidelines.

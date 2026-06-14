@@ -1,19 +1,28 @@
-import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { access, chmod, mkdir, readFile, rename, rm, writeFile, } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { configSchema, legacyConfigSchema, v2ConfigSchema, } from "./config-schema.js";
+import { randomUUID } from "node:crypto";
+import { configSchema, legacyConfigSchema, } from "./config-schema.js";
 import { CliError, errorMessage } from "./errors.js";
 import { OPENROUTER } from "../providers/openrouter.js";
 import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
 export function createDefaultConfig() {
     return {
-        version: 3,
-        activeTarget: "claude",
+        version: 2,
         activeProvider: null,
         activeModel: null,
-        providers: builtInProviderConfigs(),
-        targets: {},
+        providers: {
+            [OPENROUTER.id]: {
+                displayName: OPENROUTER.displayName,
+                baseUrl: OPENROUTER.defaultBaseUrl,
+                type: "anthropic-compatible",
+            },
+            [VERCEL_AI_GATEWAY.id]: {
+                displayName: VERCEL_AI_GATEWAY.displayName,
+                baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
+                type: "anthropic-compatible",
+            },
+        },
     };
 }
 export class FileConfigStore {
@@ -48,7 +57,7 @@ export class FileConfigStore {
         catch (error) {
             const nodeError = error;
             if (nodeError.code === "ENOENT") {
-                throw new CliError('cc-byok is not initialized. Run "cc-byok init".', "NOT_INITIALIZED");
+                throw new CliError(`cc-byok is not initialized. Run "cc-byok init".`, "NOT_INITIALIZED");
             }
             throw new CliError(`Could not read config at ${this.paths.configFile}: ${errorMessage(error)}`, "INVALID_CONFIG", 1, { cause: error });
         }
@@ -59,32 +68,29 @@ export class FileConfigStore {
         catch (error) {
             throw new CliError(`Config at ${this.paths.configFile} is not valid JSON. Repair it or move it aside and run "cc-byok init".`, "INVALID_CONFIG", 1, { cause: error });
         }
-        const current = configSchema.safeParse(parsed);
-        if (current.success)
-            return addMissingBuiltIns(current.data);
-        const v2 = v2ConfigSchema.safeParse(parsed);
-        if (v2.success) {
-            return addMissingBuiltIns({
-                ...v2.data,
-                version: 3,
-                activeTarget: "claude",
-                targets: {},
-            });
+        const result = configSchema.safeParse(parsed);
+        if (result.success) {
+            return addMissingBuiltInProviders(result.data);
         }
-        const legacy = legacyConfigSchema.safeParse(parsed);
-        if (legacy.success)
-            return migrateLegacyConfig(legacy.data);
-        const issue = current.error.issues[0];
-        const location = issue?.path.join(".") || "config";
-        throw new CliError(`Config at ${this.paths.configFile} is invalid (${location}: ${issue?.message ?? "unknown error"}).`, "INVALID_CONFIG");
+        const legacyResult = legacyConfigSchema.safeParse(parsed);
+        if (legacyResult.success) {
+            return migrateLegacyConfig(legacyResult.data);
+        }
+        if (!result.success) {
+            const issue = result.error.issues[0];
+            const location = issue?.path.join(".") || "config";
+            throw new CliError(`Config at ${this.paths.configFile} is invalid (${location}: ${issue?.message ?? "unknown error"}).`, "INVALID_CONFIG");
+        }
+        throw new CliError(`Config at ${this.paths.configFile} is invalid.`, "INVALID_CONFIG");
     }
     async write(config) {
         const validated = configSchema.parse(config);
         const directory = dirname(this.paths.configFile);
         const tempFile = join(directory, `.${basename(this.paths.configFile)}.${randomUUID()}.tmp`);
         await mkdir(directory, { recursive: true, mode: 0o700 });
-        if (process.platform !== "win32")
+        if (process.platform !== "win32") {
             await chmod(directory, 0o700);
+        }
         try {
             await writeFile(tempFile, `${JSON.stringify(validated, null, 2)}\n`, {
                 encoding: "utf8",
@@ -111,35 +117,28 @@ function migrateLegacyConfig(legacy) {
             type: "anthropic-compatible",
         },
     ]));
-    return addMissingBuiltIns({
-        version: 3,
-        activeTarget: "claude",
+    return addMissingBuiltInProviders({
+        version: 2,
         activeProvider: legacy.activeProvider,
         activeModel: legacy.activeModel,
         providers,
-        targets: {},
     });
 }
-function addMissingBuiltIns(config) {
+function addMissingBuiltInProviders(config) {
     return {
         ...config,
         providers: {
+            [OPENROUTER.id]: {
+                displayName: OPENROUTER.displayName,
+                baseUrl: OPENROUTER.defaultBaseUrl,
+                type: "anthropic-compatible",
+            },
+            [VERCEL_AI_GATEWAY.id]: {
+                displayName: VERCEL_AI_GATEWAY.displayName,
+                baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
+                type: "anthropic-compatible",
+            },
             ...config.providers,
-            ...builtInProviderConfigs(),
-        },
-    };
-}
-function builtInProviderConfigs() {
-    return {
-        [OPENROUTER.id]: {
-            displayName: OPENROUTER.displayName,
-            baseUrl: OPENROUTER.defaultBaseUrl,
-            type: OPENROUTER.type,
-        },
-        [VERCEL_AI_GATEWAY.id]: {
-            displayName: VERCEL_AI_GATEWAY.displayName,
-            baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
-            type: VERCEL_AI_GATEWAY.type,
         },
     };
 }

@@ -1,101 +1,44 @@
 import type { AppContext } from "../app-context.js";
-import { buildTargetArguments } from "../core/argument-builder.js";
-import { buildTargetEnvironment, targetNeedsApiKey } from "../core/env-builder.js";
 import { CliError } from "../core/errors.js";
-import {
-  requireConfiguredProvider,
-  validateCompatibility,
-} from "../core/provider-registry.js";
-import { resolveTarget } from "../core/target-registry.js";
-
-export interface LaunchOptions {
-  provider?: string;
-  model?: string;
-  force?: boolean;
-}
+import { requireConfiguredProvider } from "../core/provider-registry.js";
 
 export async function runLaunch(
   context: AppContext,
-  targetId: string | undefined,
-  targetArgs: string[],
-  options: LaunchOptions = {},
+  claudeArgs: string[],
 ): Promise<void> {
   const config = await context.config.read();
-  const selectedTargetId = targetId || config.activeTarget || "claude";
-  const providerId = options.provider?.trim() || config.activeProvider;
-  const model = options.model?.trim() || config.activeModel;
-
-  if (!providerId || !model) {
+  if (!config.activeProvider || !config.activeModel) {
     throw new CliError(
-      'No active model is selected. Run "cc-byok use openrouter <model-id>" or pass --provider and --model.',
+      'No active model is selected. Run "cc-byok use openrouter <model-id>".',
       "MISSING_MODEL",
     );
   }
 
-  const { target } = resolveTarget(config, selectedTargetId);
-  const provider = requireConfiguredProvider(config, providerId);
-  const compatibility = validateCompatibility(
-    provider.definition,
-    target.envProfile,
-  );
-
-  if (!compatibility.compatible && !options.force) {
+  const provider = requireConfiguredProvider(config, config.activeProvider);
+  const apiKey = await context.secrets.get(config.activeProvider);
+  if (!apiKey) {
     throw new CliError(
-      `${compatibility.message} Use --force to launch without an adapter check.`,
-      "INCOMPATIBLE_TARGET",
-    );
-  }
-  if (compatibility.message) {
-    context.output.error(
-      `Warning: ${compatibility.message}${options.force ? " Proceeding because --force was supplied." : ""}`,
+      `No API key is stored for ${provider.definition.displayName}. Run "cc-byok provider add ${config.activeProvider}".`,
+      "MISSING_KEY",
     );
   }
 
-  let apiKey: string | null = null;
-  if (targetNeedsApiKey(target)) {
-    apiKey = await context.secrets.get(providerId);
-    if (!apiKey) {
-      throw new CliError(
-        `No API key is stored for ${provider.definition.displayName}. Run "cc-byok provider add ${providerId}".`,
-        "MISSING_KEY",
-      );
-    }
-  }
-
-  const baseUrl = provider.definition.resolveBaseUrl(
-    provider.config.baseUrl,
-    target.envProfile,
-  );
-  const targetEnvironment = buildTargetEnvironment({
-    baseUrl,
+  const providerEnvironment = provider.definition.buildEnvironment({
+    baseUrl: provider.config.baseUrl,
     apiKey,
-    model,
-    target,
+    model: config.activeModel,
   });
 
   context.output.log(
-    `Launching ${target.name} with ${provider.definition.displayName} (${model})...`,
+    `Launching Claude Code with ${provider.definition.displayName} (${config.activeModel})...`,
   );
   const exitCode = await context.launcher.launch({
-    targetId: target.id,
-    targetName: target.name,
-    command: target.command,
-    args: buildTargetArguments({
-      target,
-      providerName: provider.definition.displayName,
-      baseUrl,
-      model,
-      userArgs: targetArgs,
-    }),
+    args: claudeArgs,
     cwd: context.cwd,
     env: {
       ...context.env,
-      ...targetEnvironment,
+      ...providerEnvironment,
     },
   });
-
-  if (targetId && config.activeTarget !== target.id) {
-    await context.config.write({ ...config, activeTarget: target.id });
-  }
   context.setExitCode(exitCode);
 }

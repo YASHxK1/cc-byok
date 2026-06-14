@@ -2,9 +2,6 @@ import { spawn } from "node:child_process";
 import { CliError, errorMessage } from "./errors.js";
 
 export interface LaunchRequest {
-  targetId: string;
-  targetName: string;
-  command: string;
   args: string[];
   cwd: string;
   env: NodeJS.ProcessEnv;
@@ -14,10 +11,10 @@ export interface ProcessLauncher {
   launch(request: LaunchRequest): Promise<number>;
 }
 
-export class ChildProcessLauncher implements ProcessLauncher {
+export class ClaudeProcessLauncher implements ProcessLauncher {
   async launch(request: LaunchRequest): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-      const child = spawn(request.command, request.args, {
+      const child = spawn("claude", request.args, {
         cwd: request.cwd,
         env: request.env,
         stdio: "inherit",
@@ -25,13 +22,19 @@ export class ChildProcessLauncher implements ProcessLauncher {
       });
 
       const forwardSignal = (signal: NodeJS.Signals) => {
-        if (!child.killed) child.kill(signal);
+        if (!child.killed) {
+          child.kill(signal);
+        }
       };
       const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM"];
-      for (const signal of signals) process.on(signal, forwardSignal);
+      for (const signal of signals) {
+        process.on(signal, forwardSignal);
+      }
 
       const cleanup = () => {
-        for (const signal of signals) process.off(signal, forwardSignal);
+        for (const signal of signals) {
+          process.off(signal, forwardSignal);
+        }
       };
 
       child.once("error", (error: NodeJS.ErrnoException) => {
@@ -39,8 +42,8 @@ export class ChildProcessLauncher implements ProcessLauncher {
         if (error.code === "ENOENT") {
           reject(
             new CliError(
-              `${request.targetName} command "${request.command}" was not found on PATH. Install it, then run "cc-byok launch ${request.targetId}" again.`,
-              "TARGET_NOT_FOUND",
+              'Claude Code was not found on PATH. Install it from https://code.claude.com/docs/en/setup, then run "cc-byok launch" again.',
+              "CLAUDE_NOT_FOUND",
               127,
               { cause: error },
             ),
@@ -49,7 +52,7 @@ export class ChildProcessLauncher implements ProcessLauncher {
         }
         reject(
           new CliError(
-            `Could not launch ${request.targetName}: ${errorMessage(error)}`,
+            `Could not launch Claude Code: ${errorMessage(error)}`,
             "SPAWN_FAILED",
             1,
             { cause: error },
@@ -59,7 +62,11 @@ export class ChildProcessLauncher implements ProcessLauncher {
 
       child.once("exit", (code, signal) => {
         cleanup();
-        resolve(signal ? 128 + signalNumber(signal) : (code ?? 1));
+        if (signal) {
+          resolve(128 + signalNumber(signal));
+          return;
+        }
+        resolve(code ?? 1);
       });
     });
   }

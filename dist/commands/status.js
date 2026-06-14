@@ -1,23 +1,18 @@
 import { CliError } from "../core/errors.js";
 import { requireConfiguredProvider } from "../core/provider-registry.js";
-import { resolveTarget } from "../core/target-registry.js";
 export async function runStatus(context) {
     const config = await context.config.read();
     if (!config.activeProvider || !config.activeModel) {
         throw new CliError('No active model is selected. Run "cc-byok use openrouter <model-id>".', "MISSING_MODEL");
     }
     const provider = requireConfiguredProvider(config, config.activeProvider);
-    const { target } = resolveTarget(config, config.activeTarget);
-    const baseUrl = provider.definition.resolveBaseUrl(provider.config.baseUrl, target.envProfile);
+    const hasKey = await context.secrets.has(config.activeProvider);
     context.output.log([
         `Config: ${context.paths.configFile}`,
-        `Active target: ${target.id}`,
-        `Active provider: ${config.activeProvider}`,
-        `Active model: ${config.activeModel}`,
-        `Provider type: ${provider.config.type}`,
-        `Target env profile: ${target.envProfile}`,
-        `Base URL: ${baseUrl}`,
-        "API key: ************",
+        `Provider: ${provider.definition.displayName} [${config.activeProvider}]`,
+        `Model: ${config.activeModel}`,
+        `Base URL: ${provider.config.baseUrl}`,
+        `API key: ${hasKey ? "stored" : "missing"}`,
     ].join("\n"));
 }
 //# sourceMappingURL=status.js.map
