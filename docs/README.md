@@ -1,6 +1,6 @@
 # cc-byok Documentation
 
-These guides document `cc-byok` v0.2.0.
+These guides document `cc-byok` v0.3.2.
 
 `cc-byok` launches Claude Code, Codex, Codex App, and OpenCode through BYOK
 providers and compatible gateways. Provider API keys are stored in your
@@ -10,6 +10,8 @@ operating system keychain.
 
 - [Usage](usage.md): provider-neutral setup, target launching, model selection,
   switching providers, and troubleshooting
+- [Changelog](changelog.md): release notes and compatibility notes for recent
+  versions
 - [Gateway Providers](gateways.md): Vercel AI Gateway and custom
   Anthropic-compatible gateway setup
 - [OpenRouter and Claude Code Step-by-Step](openrouter-claude-code-guide.md):
@@ -20,7 +22,7 @@ operating system keychain.
 ## Project Documents
 
 The following documents preserve the original v0.1 product and implementation
-planning. They are historical and may not describe current v0.2.0 behavior.
+planning. They are historical and may not describe current v0.3.2 behavior.
 
 - [Product requirements](project/prd.md)
 - [Original product idea](project/idea.md)
@@ -37,6 +39,9 @@ cc-byok use openrouter qwen/qwen3-coder
 cc-byok status
 cc-byok launch
 ```
+
+Use `cc-byok target list` to see the supported launch targets and whether
+delegated restore is available for each one.
 
 For Vercel AI Gateway:
 

@@ -1,6 +1,6 @@
 # Gateway Providers
 
-This guide applies to `cc-byok` v0.2.0 and newer.
+This guide applies to `cc-byok` v0.3.2 and newer.
 
 `cc-byok` supports two built-in providers and user-defined gateways:
 
@@ -93,6 +93,7 @@ Codex Desktop receives persistent configuration equivalent to:
 ```toml
 model = "deepseek/deepseek-v4-pro"
 model_provider = "cc_byok"
+model_catalog_json = "~/.codex/cc-byok-models.json"
 
 [model_providers.cc_byok]
 name = "Vercel AI Gateway"
@@ -104,10 +105,10 @@ command = "<node executable>"
 args = ["<cc-byok credential helper>", "vercel"]
 ```
 
-The model ID is not rewritten or special-cased. `cc-byok` also writes a Codex
-model catalog so Desktop displays the gateway model as a custom model. The
-authentication helper reads the key from the OS keychain; the key is not
-written to disk. The pre-existing Codex config is backed up once as
+The model ID is not rewritten or special-cased. `cc-byok` also writes
+`~/.codex/cc-byok-models.json` so Desktop displays the gateway model as a
+custom model. The authentication helper reads the key from the OS keychain; the
+key is not written to disk. The pre-existing Codex config is backed up once as
 `~/.codex/config.toml.cc-byok.bak`.
 
 ## Custom Gateway

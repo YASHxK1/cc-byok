@@ -1,6 +1,6 @@
 # Usage
 
-This guide describes the provider-neutral workflow for `cc-byok` v0.2.0.
+This guide describes the provider-neutral workflow for `cc-byok` v0.3.2.
 
 ## Initial Setup
 
@@ -69,7 +69,17 @@ updates only the non-secret config file and does not make a network request.
 Coding agents depend heavily on reliable tool calling. A model may be available
 through a provider but still perform poorly in agent workflows.
 
-### 4. Check Status
+### 4. List Available Targets
+
+```bash
+cc-byok target list
+```
+
+Displays all supported launch targets (`claude`, `codex`, `codex-app`,
+`opencode`), the underlying command, the protocol each target uses, and
+whether delegated restore is supported.
+
+### 5. Check Status
 
 ```bash
 cc-byok status
@@ -85,7 +95,7 @@ The command displays:
 
 It never displays the API key.
 
-### 5. Launch a Target
+### 6. Launch a Target
 
 Bare launch remains backward-compatible and starts Claude Code:
 
@@ -95,12 +105,12 @@ cc-byok launch
 
 Supported targets are:
 
-| Target | Command |
-|---|---|
-| `claude` | `claude` |
-| `codex` | `codex` |
-| `codex-app` | `codex app` |
-| `opencode` | `opencode` |
+| Target | Command | Protocol | Restore |
+|---|---|---|---|
+| `claude` | `claude` | Anthropic | `--continue` |
+| `codex` | `codex` | OpenAI Responses | `resume --last` |
+| `codex-app` | `codex app` | OpenAI Responses | unsupported |
+| `opencode` | `opencode` | OpenAI-compatible | unsupported |
 
 Select a target and optionally override the active provider and model:
 
@@ -115,7 +125,25 @@ The overrides do not update the active provider or model in
 provider in `~/.codex/config.toml`, since Codex Desktop continues running after
 the launcher process exits.
 
-## Forward Target Arguments
+### Session Restore
+
+Resume the last session of a supported target with `--restore`:
+
+```bash
+cc-byok launch --restore
+cc-byok launch codex --restore
+```
+
+For Claude Code, this is equivalent to `claude --continue`. For Codex, it maps
+to `codex resume --last`. Codex App and OpenCode do not support delegated
+restore; pass target-specific arguments after `--` instead:
+
+```bash
+cc-byok launch -- --continue
+cc-byok launch opencode -- --resume
+```
+
+### Forward Target Arguments
 
 Place target arguments after `--`:
 
@@ -187,15 +215,17 @@ OPENAI_API_KEY=<stored provider key>
 OPENAI_MODEL=<selected model>
 ```
 
-Codex App writes a `cc_byok` provider and `cc-byok-models.json` catalog under
-`~/.codex`. Its provider uses a command-backed helper to read the API key from
-the OS keychain, so no credential is stored in Codex configuration. The
-original Codex config is preserved once as `config.toml.cc-byok.bak`.
-
-They also receive temporary Codex configuration overrides for `model`,
-`model_provider`, provider `base_url`, `env_key`, and
+For the `codex` target, `cc-byok` also passes temporary `-c` configuration
+overrides for `model`, `model_provider`, provider `base_url`, `env_key`, and
 `wire_api="responses"`. The model string is passed through unchanged and the
 user's `~/.codex/config.toml` is not modified.
+
+Codex App writes top-level `model`, `model_provider`, and
+`model_catalog_json` settings plus a managed `cc_byok` provider block under
+`~/.codex/config.toml`. It also writes `cc-byok-models.json` under `~/.codex`.
+The managed provider uses a command-backed helper to read the API key from the
+OS keychain, so no credential is stored in Codex configuration. The original
+Codex config is preserved once as `config.toml.cc-byok.bak`.
 
 OpenRouter and Vercel use protocol-specific endpoints:
 
@@ -210,6 +240,23 @@ one fails with an explicit compatibility error.
 
 `cc-byok` does not run a proxy or send network requests itself. The target
 connects directly to the selected provider or gateway.
+
+## Environment Variables
+
+`cc-byok` accepts these optional environment variables:
+
+| Variable | Purpose |
+|---|---|
+| `CC_BYOK_HOME` | Override the default `~/.cc-byok` config directory |
+| `CC_BYOK_DEBUG` | Print full error stacks when enabled (set to any non-empty value) |
+| `CODEX_HOME` | Override the default `~/.codex` directory when writing Codex App configuration |
+
+Example:
+
+```bash
+CC_BYOK_HOME=/path/to/alt-config cc-byok status
+CC_BYOK_DEBUG=1 cc-byok launch
+```
 
 ## Troubleshooting
 
