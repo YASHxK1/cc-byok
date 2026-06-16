@@ -107,7 +107,10 @@ describe("CLI argument parsing", () => {
         ["node", "cc-byok", "launch", "not-a-target"],
         { from: "node" },
       ),
-    ).rejects.toMatchObject({ code: "UNKNOWN_TARGET" });
+    ).rejects.toMatchObject({
+      code: "UNKNOWN_TARGET",
+      message: expect.stringContaining("cc-byok target list"),
+    });
   });
 
   it("uses the legacy active provider and model for bare launch", async () => {
@@ -132,6 +135,122 @@ describe("CLI argument parsing", () => {
     });
   });
 
+  it("forwards restore to Claude Code as --continue without changing BYOK env", async () => {
+    let request: LaunchRequest | undefined;
+    const context = fakeContext(baseConfig(), (value) => {
+      request = value;
+    });
+
+    await createProgram(context).parseAsync(
+      ["node", "cc-byok", "launch", "--restore"],
+      { from: "node" },
+    );
+
+    expect(request).toMatchObject({
+      targetId: "claude",
+      command: "claude",
+      args: ["--continue"],
+      env: {
+        ANTHROPIC_BASE_URL: "https://openrouter.ai/api",
+        ANTHROPIC_AUTH_TOKEN: "secret",
+        ANTHROPIC_API_KEY: "",
+        ANTHROPIC_MODEL: "qwen/qwen3-coder",
+      },
+    });
+  });
+
+  it("keeps passthrough arguments after Claude restore", async () => {
+    let request: LaunchRequest | undefined;
+    const context = fakeContext(baseConfig(), (value) => {
+      request = value;
+    });
+
+    await createProgram(context).parseAsync(
+      [
+        "node",
+        "cc-byok",
+        "launch",
+        "--restore",
+        "--",
+        "--print",
+        "Continue from the last session",
+      ],
+      { from: "node" },
+    );
+
+    expect(request?.args).toEqual([
+      "--continue",
+      "--print",
+      "Continue from the last session",
+    ]);
+  });
+
+  it("resolves codex restore to resume --last with passthrough args", async () => {
+    let request: LaunchRequest | undefined;
+    const context = fakeContext(baseConfig(), (value) => {
+      request = value;
+    });
+
+    await createProgram(context).parseAsync(
+      [
+        "node",
+        "cc-byok",
+        "launch",
+        "codex",
+        "--provider",
+        "vercel",
+        "--model",
+        "openai/gpt-5",
+        "--restore",
+        "--",
+        "--print",
+        "Continue",
+      ],
+      { from: "node" },
+    );
+
+    expect(request).toMatchObject({
+      targetId: "codex",
+      command: "codex",
+      env: {
+        OPENAI_BASE_URL: "https://ai-gateway.vercel.sh/v1",
+        OPENAI_API_KEY: "secret",
+        OPENAI_MODEL: "openai/gpt-5",
+      },
+    });
+    expect(request?.args.slice(-4)).toEqual([
+      "resume",
+      "--last",
+      "--print",
+      "Continue",
+    ]);
+  });
+
+  it("rejects codex-app restore before launching", async () => {
+    let launched = false;
+    const context = fakeContext(baseConfig(), () => {
+      launched = true;
+    });
+
+    await expect(
+      createProgram(context).parseAsync(
+        [
+          "node",
+          "cc-byok",
+          "launch",
+          "codex-app",
+          "--provider",
+          "vercel",
+          "--model",
+          "openai/gpt-5",
+          "--restore",
+        ],
+        { from: "node" },
+      ),
+    ).rejects.toMatchObject({ code: "UNSUPPORTED_RESTORE" });
+    expect(launched).toBe(false);
+  });
+
   it("reports a missing provider key for an explicit target", async () => {
     const context = fakeContext(baseConfig(), () => undefined);
     context.secrets.get = async () => null;
@@ -151,6 +270,35 @@ describe("CLI argument parsing", () => {
         { from: "node" },
       ),
     ).rejects.toMatchObject({ code: "MISSING_KEY" });
+  });
+
+  it("reports a missing provider key before restore launch", async () => {
+    const context = fakeContext(baseConfig(), () => undefined);
+    context.secrets.get = async () => null;
+
+    await expect(
+      createProgram(context).parseAsync(
+        ["node", "cc-byok", "launch", "--restore"],
+        { from: "node" },
+      ),
+    ).rejects.toMatchObject({ code: "MISSING_KEY" });
+  });
+
+  it("lists available targets", async () => {
+    const logs: string[] = [];
+    const context = fakeContext(baseConfig(), () => undefined);
+    context.output.log = (message) => logs.push(message);
+
+    await createProgram(context).parseAsync(
+      ["node", "cc-byok", "target", "list"],
+      { from: "node" },
+    );
+
+    expect(logs.join("\n")).toContain("Claude Code [claude]");
+    expect(logs.join("\n")).toContain("Codex [codex]");
+    expect(logs.join("\n")).toContain("Codex App [codex-app]");
+    expect(logs.join("\n")).toContain("restore unsupported");
+    expect(logs.join("\n")).not.toContain("secret");
   });
 });
 

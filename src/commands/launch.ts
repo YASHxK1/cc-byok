@@ -15,6 +15,7 @@ import { resolveTarget } from "../core/target-registry.js";
 export interface LaunchOptions {
   provider?: string;
   model?: string;
+  restore?: boolean;
 }
 
 export async function runLaunch(
@@ -40,6 +41,14 @@ export async function runLaunch(
   }
 
   const target = resolveTarget(targetId ?? "claude");
+  const restore = options.restore ?? false;
+  if (restore && !target.restoreArgs) {
+    throw new CliError(
+      `${target.name} does not support delegated restore through cc-byok. Run "cc-byok launch ${target.id} -- <target arguments...>" to pass target-specific arguments directly.`,
+      "UNSUPPORTED_RESTORE",
+    );
+  }
+
   const provider = requireConfiguredProvider(config, providerId);
   validateCompatibility(provider.definition, target.protocol);
 
@@ -89,6 +98,7 @@ export async function runLaunch(
       providerName: provider.definition.displayName,
       baseUrl,
       model,
+      restore,
       userArgs: targetArgs,
     }),
     cwd: context.cwd,

@@ -5,6 +5,7 @@ export interface TargetArgumentsInput {
   providerName: string;
   baseUrl: string;
   model: string;
+  restore: boolean;
   userArgs: string[];
 }
 
@@ -13,13 +14,15 @@ export function buildTargetArguments({
   providerName,
   baseUrl,
   model,
+  restore,
   userArgs,
 }: TargetArgumentsInput): string[] {
   const routingArgs = target.argumentProfile === "codex"
     ? buildCodexArguments(providerName, baseUrl, model)
     : [];
+  const restoreArgs = restore ? target.restoreArgs ?? [] : [];
 
-  return [...target.defaultArgs, ...routingArgs, ...userArgs];
+  return [...target.defaultArgs, ...routingArgs, ...restoreArgs, ...userArgs];
 }
 
 function buildCodexArguments(

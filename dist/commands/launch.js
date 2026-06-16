@@ -18,6 +18,10 @@ export async function runLaunch(context, targetId, targetArgs, options = {}) {
         throw new CliError(`No active model is selected. Run "cc-byok use ${providerId} <model-id>" or pass --provider and --model.`, "MISSING_MODEL");
     }
     const target = resolveTarget(targetId ?? "claude");
+    const restore = options.restore ?? false;
+    if (restore && !target.restoreArgs) {
+        throw new CliError(`${target.name} does not support delegated restore through cc-byok. Run "cc-byok launch ${target.id} -- <target arguments...>" to pass target-specific arguments directly.`, "UNSUPPORTED_RESTORE");
+    }
     const provider = requireConfiguredProvider(config, providerId);
     validateCompatibility(provider.definition, target.protocol);
     const apiKey = await context.secrets.get(providerId);
@@ -53,6 +57,7 @@ export async function runLaunch(context, targetId, targetArgs, options = {}) {
             providerName: provider.definition.displayName,
             baseUrl,
             model,
+            restore,
             userArgs: targetArgs,
         }),
         cwd: context.cwd,

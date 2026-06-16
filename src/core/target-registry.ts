@@ -9,6 +9,7 @@ export interface LaunchTarget {
   command: string;
   protocol: ProtocolProfile;
   defaultArgs: string[];
+  restoreArgs?: string[];
   argumentProfile?: ArgumentProfile;
 }
 
@@ -19,6 +20,7 @@ const targetList: LaunchTarget[] = [
     command: "claude",
     protocol: "anthropic",
     defaultArgs: [],
+    restoreArgs: ["--continue"],
   },
   {
     id: "codex",
@@ -26,6 +28,7 @@ const targetList: LaunchTarget[] = [
     command: "codex",
     protocol: "openai",
     defaultArgs: [],
+    restoreArgs: ["resume", "--last"],
     argumentProfile: "codex",
   },
   {
@@ -56,7 +59,7 @@ export function resolveTarget(id: string): LaunchTarget {
   const target = targets.get(id);
   if (!target) {
     throw new CliError(
-      `Unknown target "${id}". Supported targets: ${[...targets.keys()].join(", ")}.`,
+      `Unknown target "${id}". Supported targets: ${[...targets.keys()].join(", ")}. Run "cc-byok target list" to list available targets.`,
       "UNKNOWN_TARGET",
     );
   }

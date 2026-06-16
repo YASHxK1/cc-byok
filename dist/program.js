@@ -4,6 +4,7 @@ import { runLaunch } from "./commands/launch.js";
 import { runProviderAdd } from "./commands/provider-add.js";
 import { runProviderList } from "./commands/provider-list.js";
 import { runStatus } from "./commands/status.js";
+import { runTargetList } from "./commands/target-list.js";
 import { runUse } from "./commands/use.js";
 export function createProgram(context) {
     const program = new Command()
@@ -38,12 +39,20 @@ export function createProgram(context) {
         .command("status")
         .description("Show the active configuration and key status")
         .action(() => runStatus(context));
+    const target = program
+        .command("target")
+        .description("List supported launch targets");
+    target
+        .command("list")
+        .description("List supported launch targets")
+        .action(() => runTargetList(context));
     program
         .command("launch")
         .description("Launch claude, codex, codex-app, or opencode")
         .argument("[values...]", "optional target followed by target arguments")
         .option("--provider <provider>", "override the active provider")
         .option("--model <model>", "override the active model")
+        .option("--restore", "restore the previous session when the target supports it")
         .allowUnknownOption(true)
         .addHelpText("after", "\nSupported targets: claude, codex, codex-app, opencode")
         .action((values = [], options) => {

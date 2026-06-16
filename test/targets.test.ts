@@ -15,5 +15,8 @@ describe("target registry", () => {
       defaultArgs: ["app"],
     });
     expect(resolveTarget("codex-app").argumentProfile).toBeUndefined();
+    expect(resolveTarget("claude").restoreArgs).toEqual(["--continue"]);
+    expect(resolveTarget("codex").restoreArgs).toEqual(["resume", "--last"]);
+    expect(resolveTarget("codex-app").restoreArgs).toBeUndefined();
   });
 });

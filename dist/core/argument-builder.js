@@ -1,8 +1,9 @@
-export function buildTargetArguments({ target, providerName, baseUrl, model, userArgs, }) {
+export function buildTargetArguments({ target, providerName, baseUrl, model, restore, userArgs, }) {
     const routingArgs = target.argumentProfile === "codex"
         ? buildCodexArguments(providerName, baseUrl, model)
         : [];
-    return [...target.defaultArgs, ...routingArgs, ...userArgs];
+    const restoreArgs = restore ? target.restoreArgs ?? [] : [];
+    return [...target.defaultArgs, ...routingArgs, ...restoreArgs, ...userArgs];
 }
 function buildCodexArguments(providerName, baseUrl, model) {
     const providerId = "cc_byok";

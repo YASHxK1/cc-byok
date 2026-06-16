@@ -6,6 +6,7 @@ export interface LaunchTarget {
     command: string;
     protocol: ProtocolProfile;
     defaultArgs: string[];
+    restoreArgs?: string[];
     argumentProfile?: ArgumentProfile;
 }
 export declare function listTargets(): LaunchTarget[];

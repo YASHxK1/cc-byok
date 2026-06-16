@@ -66,6 +66,25 @@ describe("MVP workflow", () => {
     expect(fixture.errors.join("\n")).not.toContain("test-api-key");
   });
 
+  it("restores Claude Code without changing BYOK environment or logging keys", async () => {
+    const fixture = await createFixture();
+
+    await runInit(fixture.context);
+    await runProviderAdd(fixture.context, "openrouter");
+    await runUse(fixture.context, "openrouter", "qwen/qwen3-coder");
+    await runLaunch(fixture.context, undefined, [], { restore: true });
+
+    expect(fixture.launcher.request?.args).toEqual(["--continue"]);
+    expect(fixture.launcher.request?.env).toMatchObject({
+      ANTHROPIC_BASE_URL: "https://openrouter.ai/api",
+      ANTHROPIC_AUTH_TOKEN: "test-api-key",
+      ANTHROPIC_API_KEY: "",
+      ANTHROPIC_MODEL: "qwen/qwen3-coder",
+    });
+    expect(fixture.logs.join("\n")).not.toContain("test-api-key");
+    expect(fixture.errors.join("\n")).not.toContain("test-api-key");
+  });
+
   it("does not overwrite a stored key when replacement is declined", async () => {
     const fixture = await createFixture();
     await runInit(fixture.context);

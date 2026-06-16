@@ -4,6 +4,7 @@ export interface TargetArgumentsInput {
     providerName: string;
     baseUrl: string;
     model: string;
+    restore: boolean;
     userArgs: string[];
 }
-export declare function buildTargetArguments({ target, providerName, baseUrl, model, userArgs, }: TargetArgumentsInput): string[];
+export declare function buildTargetArguments({ target, providerName, baseUrl, model, restore, userArgs, }: TargetArgumentsInput): string[];

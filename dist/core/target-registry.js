@@ -6,6 +6,7 @@ const targetList = [
         command: "claude",
         protocol: "anthropic",
         defaultArgs: [],
+        restoreArgs: ["--continue"],
     },
     {
         id: "codex",
@@ -13,6 +14,7 @@ const targetList = [
         command: "codex",
         protocol: "openai",
         defaultArgs: [],
+        restoreArgs: ["resume", "--last"],
         argumentProfile: "codex",
     },
     {
@@ -37,7 +39,7 @@ export function listTargets() {
 export function resolveTarget(id) {
     const target = targets.get(id);
     if (!target) {
-        throw new CliError(`Unknown target "${id}". Supported targets: ${[...targets.keys()].join(", ")}.`, "UNKNOWN_TARGET");
+        throw new CliError(`Unknown target "${id}". Supported targets: ${[...targets.keys()].join(", ")}. Run "cc-byok target list" to list available targets.`, "UNKNOWN_TARGET");
     }
     return target;
 }
