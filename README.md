@@ -8,6 +8,14 @@ It is a local configuration wrapper. It does not proxy requests, translate
 protocols, log API keys, or send network requests itself. The selected target
 connects directly to the configured provider.
 
+## Documentation
+
+- [Usage Guide](docs/usage.md)
+- [Gateway Providers](docs/gateways.md)
+- [OpenRouter and Claude Code Guide](docs/openrouter-claude-code-guide.md)
+- [Installation](docs/installation.md)
+- [Changelog](docs/changelog.md)
+
 ## Features
 
 - Launch Claude Code, Codex CLI, Codex App, and OpenCode from one CLI
