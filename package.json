@@ -19,7 +19,7 @@
     "test": "vitest run --pool=threads",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepack": "npm run build"
+    "prepare": "npm run build"
   },
   "engines": {
     "node": ">=20.17"

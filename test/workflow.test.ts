@@ -47,6 +47,25 @@ describe("MVP workflow", () => {
     expect(fixture.errors).toEqual([]);
   });
 
+  it("overrides an inherited Anthropic API key with an empty string", async () => {
+    const fixture = await createFixture({
+      env: {
+        EXISTING_VARIABLE: "preserved",
+        ANTHROPIC_API_KEY: "inherited-anthropic-key",
+      },
+    });
+
+    await runInit(fixture.context);
+    await runProviderAdd(fixture.context, "openrouter");
+    await runUse(fixture.context, "openrouter", "qwen/qwen3-coder");
+    await runLaunch(fixture.context, undefined, []);
+
+    expect(fixture.launcher.request?.env.ANTHROPIC_API_KEY).toBe("");
+    expect(fixture.logs.join("\n")).not.toContain("test-api-key");
+    expect(fixture.logs.join("\n")).not.toContain("inherited-anthropic-key");
+    expect(fixture.errors.join("\n")).not.toContain("test-api-key");
+  });
+
   it("does not overwrite a stored key when replacement is declined", async () => {
     const fixture = await createFixture();
     await runInit(fixture.context);
@@ -64,7 +83,40 @@ describe("MVP workflow", () => {
     await runInit(fixture.context);
 
     await expect(runLaunch(fixture.context, undefined, [])).rejects.toMatchObject({
+      code: "MISSING_PROVIDER",
+    });
+    expect(fixture.launcher.request).toBeNull();
+  });
+
+  it("refuses to launch when a provider is selected without a model", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+    const config = await fixture.context.config.read();
+    await fixture.context.config.write({
+      ...config,
+      activeProvider: "openrouter",
+      activeModel: null,
+    });
+
+    await expect(runLaunch(fixture.context, undefined, [])).rejects.toThrow(
+      'Run "cc-byok use openrouter <model-id>"',
+    );
+    await expect(runLaunch(fixture.context, undefined, [])).rejects.toMatchObject({
       code: "MISSING_MODEL",
+    });
+    expect(fixture.launcher.request).toBeNull();
+  });
+
+  it("refuses to launch before spawning when the provider key is missing", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+    await runUse(fixture.context, "openrouter", "qwen/qwen3-coder");
+
+    await expect(runLaunch(fixture.context, undefined, [])).rejects.toMatchObject({
+      code: "MISSING_KEY",
+      message: expect.stringContaining(
+        'Run "cc-byok provider add openrouter".',
+      ),
     });
     expect(fixture.launcher.request).toBeNull();
   });
@@ -156,7 +208,7 @@ class CapturingLauncher implements ProcessLauncher {
   }
 }
 
-async function createFixture() {
+async function createFixture(options: { env?: NodeJS.ProcessEnv } = {}) {
   const directory = await mkdtemp(join(tmpdir(), "cc-byok-workflow-"));
   cleanup.push(directory);
   const paths = {
@@ -180,7 +232,7 @@ async function createFixture() {
       error: (message) => errors.push(message),
     },
     cwd: "C:\\project",
-    env: { EXISTING_VARIABLE: "preserved" },
+    env: options.env ?? { EXISTING_VARIABLE: "preserved" },
     setExitCode: (code) => exitCodes.push(code),
   };
 

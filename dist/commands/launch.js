@@ -11,8 +11,11 @@ export async function runLaunch(context, targetId, targetArgs, options = {}) {
     const config = await context.config.read();
     const providerId = options.provider?.trim() || config.activeProvider;
     const model = options.model?.trim() || config.activeModel;
-    if (!providerId || !model) {
-        throw new CliError('No active model is selected. Run "cc-byok use openrouter <model-id>" or pass --provider and --model.', "MISSING_MODEL");
+    if (!providerId) {
+        throw new CliError('No active provider is selected. Run "cc-byok use <provider-id> <model-id>" or pass --provider and --model.', "MISSING_PROVIDER");
+    }
+    if (!model) {
+        throw new CliError(`No active model is selected. Run "cc-byok use ${providerId} <model-id>" or pass --provider and --model.`, "MISSING_MODEL");
     }
     const target = resolveTarget(targetId ?? "claude");
     const provider = requireConfiguredProvider(config, providerId);
