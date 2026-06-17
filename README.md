@@ -338,5 +338,5 @@ npm install
 npm run check
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for repository structure and pull
+See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for repository structure and pull
 request guidelines.
