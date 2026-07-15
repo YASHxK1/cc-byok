@@ -6,6 +6,7 @@ import { configSchema, legacyConfigSchema, } from "./config-schema.js";
 import { CliError, errorMessage } from "./errors.js";
 import { OPENROUTER } from "../providers/openrouter.js";
 import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
+import { AI_GATEWAY } from "../providers/ai-gateway.js";
 export function createDefaultConfig() {
     return {
         version: 2,
@@ -21,6 +22,11 @@ export function createDefaultConfig() {
                 displayName: VERCEL_AI_GATEWAY.displayName,
                 baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
                 type: "anthropic-compatible",
+            },
+            [AI_GATEWAY.id]: {
+                displayName: AI_GATEWAY.displayName,
+                baseUrl: AI_GATEWAY.defaultBaseUrl,
+                type: "openai-compatible",
             },
         },
     };
@@ -137,6 +143,11 @@ function addMissingBuiltInProviders(config) {
                 displayName: VERCEL_AI_GATEWAY.displayName,
                 baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
                 type: "anthropic-compatible",
+            },
+            [AI_GATEWAY.id]: {
+                displayName: AI_GATEWAY.displayName,
+                baseUrl: AI_GATEWAY.defaultBaseUrl,
+                type: "openai-compatible",
             },
             ...config.providers,
         },

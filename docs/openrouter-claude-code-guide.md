@@ -3,8 +3,9 @@
 This guide explains how to install `cc-byok`, add an OpenRouter API key, select
 an OpenRouter model, and chat with that model through Claude Code.
 
-This guide is specifically for OpenRouter. For Vercel AI Gateway or a custom
-gateway, see [Gateway Providers](gateways.md).
+This guide is specifically for OpenRouter. For the integrated Codex-backed AI
+Gateway, Vercel AI Gateway, or a custom gateway, see
+[Gateway Providers](gateways.md).
 
 ## 1. Install the Requirements
 
@@ -13,7 +14,7 @@ You need:
 - Node.js 20.17 or newer
 - Claude Code
 - an OpenRouter account
-- this `cc-byok` repository
+- `cc-byok`
 
 Check Node.js:
 
@@ -33,29 +34,20 @@ claude --version
 
 ## 2. Install cc-byok
 
-The package is not published to npm yet, so install it from the local repository.
+Install the package globally:
 
-Open PowerShell in the repository:
+```powershell
+npm install --global cc-byok
+```
+
+To work from source instead, open PowerShell in the repository and run:
 
 ```powershell
 cd E:\cc-byok
-```
-
-Install dependencies and build the tool:
-
-```powershell
 npm install
 npm run build
-```
-
-Install the CLI globally:
-
-```powershell
 npm install --global .
 ```
-
-Do not run `npm install --global cc-byok` yet. That command installs from the npm
-registry, where this package has not been published.
 
 Verify the local installation:
 
@@ -169,8 +161,8 @@ You can also list configured providers:
 cc-byok provider list
 ```
 
-The list includes the built-in OpenRouter and Vercel AI Gateway entries, plus
-any custom gateways you have added.
+The list includes the built-in OpenRouter, Vercel AI Gateway, and local
+Codex-backed AI Gateway entries, plus any custom gateways you have added.
 
 ## 9. Start Claude Code
 
@@ -341,4 +333,6 @@ ANTHROPIC_MODEL=<your selected model>
 ```
 
 Claude Code then communicates directly with OpenRouter. `cc-byok` does not run a
-proxy and does not send API requests itself.
+proxy for this OpenRouter workflow and does not send the model requests itself.
+The separate `cc-byok gateway` command is an opt-in local proxy for Codex-backed
+Chat Completions clients.

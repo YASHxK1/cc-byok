@@ -1,6 +1,7 @@
 # Usage
 
-This guide describes the provider-neutral workflow for `cc-byok` v0.3.2.
+This guide describes the current provider-neutral workflow, including the
+integrated local gateway.
 
 ## Initial Setup
 
@@ -32,6 +33,9 @@ cc-byok provider add openrouter
 
 # Vercel AI Gateway
 cc-byok provider add vercel
+
+# Local Codex-backed AI Gateway
+cc-byok provider add ai-gateway
 ```
 
 For a custom Anthropic-compatible gateway:
@@ -42,12 +46,13 @@ cc-byok provider add team-gateway \
   --display-name "Team Gateway"
 ```
 
-The prompt hides the provider key while you type. The key is stored under
-service `cc-byok`, using the provider ID as its account, in your operating
-system keychain.
+For OpenRouter, Vercel, and custom providers, the prompt hides the provider key
+while you type. The key is stored under service `cc-byok`, using the provider
+ID as its account, in your operating system keychain.
 
 Running the command when a key already exists asks for confirmation before
-replacing it.
+replacing it. `provider add ai-gateway` is different: it generates or reuses a
+managed local bearer key and does not prompt.
 
 ### 3. Select a Model
 
@@ -60,6 +65,7 @@ Examples:
 ```bash
 cc-byok use openrouter qwen/qwen3-coder
 cc-byok use vercel <provider/model-id>
+cc-byok use ai-gateway codex-latest
 cc-byok use team-gateway <provider/model-id>
 ```
 
@@ -187,11 +193,64 @@ previous provider.
 cc-byok provider list
 ```
 
-The CLI includes OpenRouter and Vercel AI Gateway. Custom Anthropic-compatible
-gateways can also be added from the CLI. The active provider is marked in the
-output.
+The CLI includes OpenRouter, Vercel AI Gateway, and the local Codex-backed AI
+Gateway. The local gateway exposes Anthropic Messages for Claude Code and Chat
+Completions for OpenCode. Custom Anthropic-compatible gateways can also be
+added from the CLI. The active provider is marked in the output.
 
 See [Gateway Providers](gateways.md) for setup commands.
+
+## Run the Local Codex Gateway
+
+The local gateway requires Codex CLI 0.144.4 or newer. Codex account
+credentials remain managed by the official Codex CLI.
+
+Authenticate once:
+
+```bash
+cc-byok gateway login
+# For a terminal without a usable browser callback:
+cc-byok gateway login --device-auth
+```
+
+Start the gateway in the foreground from the workspace Codex should see:
+
+```bash
+cc-byok gateway start
+```
+
+The default workspace is the current directory and the default endpoint is
+`http://127.0.0.1:3000/v1`. Both can be changed:
+
+```bash
+cc-byok gateway start --port 3100 --workspace /path/to/project --verbose
+```
+
+The server binds only to `127.0.0.1`. A non-default port is persisted in the
+built-in provider configuration. Keep this process running and launch Claude
+Code or OpenCode from another terminal:
+
+```bash
+cc-byok use ai-gateway codex-latest
+cc-byok launch claude
+# or:
+cc-byok launch opencode
+```
+
+Gateway management commands:
+
+```text
+cc-byok gateway status
+cc-byok gateway key
+cc-byok gateway rotate-key
+cc-byok gateway logout
+```
+
+`gateway status` reports the Codex installation and version, Codex login state,
+configured endpoint, key state, and HTTP health. `gateway key` intentionally
+prints the bearer key for external SDK configuration. Treat that output like a
+password. After rotating a key, restart a currently running gateway and update
+all clients.
 
 ## How Routing Works
 
@@ -233,13 +292,17 @@ OpenRouter and Vercel use protocol-specific endpoints:
 |---|---|---|
 | OpenRouter | `https://openrouter.ai/api` | `https://openrouter.ai/api/v1` |
 | Vercel | `https://ai-gateway.vercel.sh` | `https://ai-gateway.vercel.sh/v1` |
+| Local AI Gateway | `http://127.0.0.1:3000` | `http://127.0.0.1:3000/v1` (Chat Completions) |
 
 Custom providers configured through `provider add --base-url` are
 Anthropic-compatible only. Launching `codex`, `codex-app`, or `opencode` with
 one fails with an explicit compatibility error.
 
-`cc-byok` does not run a proxy or send network requests itself. The target
-connects directly to the selected provider or gateway.
+For OpenRouter, Vercel, and custom providers, the target connects directly to
+the selected provider. The opt-in `cc-byok gateway start` process is a local
+proxy: it accepts authenticated Chat Completions requests and communicates with
+the Codex app-server child over stdio. Gateway status and launch preflight also
+make loopback health requests.
 
 ## Environment Variables
 
@@ -299,7 +362,21 @@ Run:
 cc-byok provider add <provider-id>
 ```
 
-For built-ins, use `openrouter` or `vercel`.
+For external built-ins, use `openrouter` or `vercel`. For the local gateway,
+use `cc-byok provider add ai-gateway`.
+
+### Local Gateway Is Unavailable
+
+Start it in another terminal from the intended workspace:
+
+```bash
+cc-byok gateway status
+cc-byok gateway start
+```
+
+If startup reports that Codex is missing or too old, install or upgrade Codex
+CLI and verify that `codex --version` reports 0.144.4 or newer. If Codex is not
+authenticated, run `cc-byok gateway login`.
 
 ### Authentication or Model-Not-Found Errors
 

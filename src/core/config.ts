@@ -19,6 +19,7 @@ import { CliError, errorMessage } from "./errors.js";
 import type { AppPaths } from "./paths.js";
 import { OPENROUTER } from "../providers/openrouter.js";
 import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
+import { AI_GATEWAY } from "../providers/ai-gateway.js";
 
 export interface ConfigStore {
   exists(): Promise<boolean>;
@@ -42,6 +43,11 @@ export function createDefaultConfig(): Config {
         displayName: VERCEL_AI_GATEWAY.displayName,
         baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
         type: "anthropic-compatible",
+      },
+      [AI_GATEWAY.id]: {
+        displayName: AI_GATEWAY.displayName,
+        baseUrl: AI_GATEWAY.defaultBaseUrl,
+        type: "openai-compatible",
       },
     },
   };
@@ -198,6 +204,11 @@ function addMissingBuiltInProviders(config: Config): Config {
         displayName: VERCEL_AI_GATEWAY.displayName,
         baseUrl: VERCEL_AI_GATEWAY.defaultBaseUrl,
         type: "anthropic-compatible",
+      },
+      [AI_GATEWAY.id]: {
+        displayName: AI_GATEWAY.displayName,
+        baseUrl: AI_GATEWAY.defaultBaseUrl,
+        type: "openai-compatible",
       },
       ...config.providers,
     },

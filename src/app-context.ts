@@ -18,6 +18,7 @@ export interface AppContext {
   output: Output;
   cwd: string;
   env: NodeJS.ProcessEnv;
+  fetch?: typeof fetch;
   setExitCode(code: number): void;
 }
 
@@ -32,6 +33,7 @@ export function createAppContext(): AppContext {
     output: console,
     cwd: process.cwd(),
     env: process.env,
+    fetch: globalThis.fetch,
     setExitCode(code) {
       process.exitCode = code;
     },

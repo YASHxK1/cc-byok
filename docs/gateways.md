@@ -1,13 +1,17 @@
 # Gateway Providers
 
-This guide applies to `cc-byok` v0.3.2 and newer.
+For error diagnosis and recovery steps, see
+[Local AI Gateway Troubleshooting](gateway-troubleshooting.md).
 
-`cc-byok` supports two built-in providers and user-defined gateways:
+This guide describes the current built-in and custom gateway behavior.
+
+`cc-byok` supports three built-in providers and user-defined gateways:
 
 | Provider ID | Anthropic endpoint | OpenAI endpoint |
 |---|---|---|
 | `openrouter` | `https://openrouter.ai/api` | `https://openrouter.ai/api/v1` |
 | `vercel` | `https://ai-gateway.vercel.sh` | `https://ai-gateway.vercel.sh/v1` |
+| `ai-gateway` | `http://127.0.0.1:3000` | `http://127.0.0.1:3000/v1` (Chat Completions) |
 
 Custom gateways must implement the Anthropic Messages API, including
 `POST /v1/messages`, streaming, and tool calls. An OpenAI-compatible endpoint by
@@ -19,6 +23,86 @@ Run `cc-byok init` before following either workflow:
 cc-byok init
 cc-byok provider list
 ```
+
+## Local Codex-backed AI Gateway
+
+The integrated AI Gateway exposes Codex through an authenticated,
+OpenAI-compatible Chat Completions API. It requires Codex CLI 0.144.4 or newer.
+Initialize the provider and authenticate Codex:
+
+```bash
+cc-byok provider add ai-gateway
+cc-byok gateway login
+```
+
+Start it from the workspace Codex should treat as its working directory:
+
+```bash
+cc-byok gateway start
+```
+
+In another terminal, select it and launch Claude Code or OpenCode:
+
+```bash
+cc-byok use ai-gateway codex-latest
+cc-byok launch claude
+# or:
+cc-byok launch opencode
+```
+
+The default endpoint is `http://127.0.0.1:3000/v1`. `gateway start --port`
+persists a different loopback endpoint. `provider add ai-gateway` creates or
+reuses the managed key without prompting. Use `gateway key` to configure an
+external SDK and `gateway rotate-key` to invalidate the current key.
+
+This provider supports the Anthropic Messages API used by `claude` and OpenAI
+Chat Completions used by `opencode`. It remains incompatible with `codex` and
+`codex-app`, which require the OpenAI Responses API. Compatibility is checked
+before launch.
+
+`gateway start` runs in the foreground until `Ctrl+C`. It accepts `--port`,
+`--workspace`, and `--verbose`. Use `gateway login --device-auth` for the
+device-code flow and `gateway logout` to delegate logout to Codex. Codex account
+credentials are never copied into `cc-byok` storage.
+
+### HTTP API
+
+Every endpoint requires the local bearer key:
+
+```text
+Authorization: Bearer <gateway-key>
+```
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/v1/messages` | Anthropic text, SSE streaming, tools, and tool results |
+| `POST` | `/v1/chat/completions` | Text, SSE streaming, and OpenAI function tools |
+| `GET` | `/v1/models` | Codex model catalog plus `codex-latest` |
+| `GET` | `/v1/status` | Runtime, Codex version, uptime, and active requests |
+
+Configure an external OpenAI-compatible client with:
+
+```bash
+export OPENAI_BASE_URL=http://127.0.0.1:3000/v1
+export OPENAI_API_KEY="$(cc-byok gateway key)"
+```
+
+The gateway creates ephemeral read-only Codex threads. Native Codex command or
+file escalation is not approved; functions supplied by the client are returned
+as OpenAI `tool_calls`, and the client sends matching `tool` results in a later
+Chat Completions request.
+
+### Gateway Status and Keys
+
+```bash
+cc-byok gateway status
+cc-byok gateway key
+cc-byok gateway rotate-key
+```
+
+`gateway key` intentionally prints the secret. After `rotate-key`, update
+clients and restart a gateway process that was already running so it loads the
+replacement key.
 
 ## Vercel AI Gateway
 
@@ -206,4 +290,23 @@ catalog and use the exact supported ID:
 
 ```bash
 cc-byok use <provider-id> <exact-model-id>
+```
+
+### Codex Login or Version Error
+
+```bash
+codex --version
+cc-byok gateway status
+cc-byok gateway login
+```
+
+The gateway rejects missing Codex installations and versions older than
+0.144.4 with an upgrade-oriented error.
+
+### Port Is Already in Use
+
+Choose another loopback port and update clients to the persisted endpoint:
+
+```bash
+cc-byok gateway start --port 3100
 ```

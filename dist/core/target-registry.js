@@ -28,7 +28,7 @@ const targetList = [
         id: "opencode",
         name: "OpenCode",
         command: "opencode",
-        protocol: "openai",
+        protocol: "openai-chat",
         defaultArgs: [],
     },
 ];

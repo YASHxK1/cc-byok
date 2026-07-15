@@ -29,6 +29,8 @@ export async function runLaunch(context, targetId, targetArgs, options = {}) {
         throw new CliError(`No API key is stored for ${provider.definition.displayName}. Run "cc-byok provider add ${providerId}".`, "MISSING_KEY");
     }
     const baseUrl = provider.definition.resolveBaseUrl(provider.config.baseUrl, target.protocol);
+    if (providerId === "ai-gateway" && context.fetch)
+        await requireGatewayHealth(context.fetch, baseUrl, apiKey);
     const targetEnvironment = buildTargetEnvironment({
         baseUrl,
         apiKey,
@@ -67,5 +69,14 @@ export async function runLaunch(context, targetId, targetArgs, options = {}) {
         },
     });
     context.setExitCode(exitCode);
+}
+async function requireGatewayHealth(fetcher, baseUrl, apiKey) {
+    try {
+        const response = await fetcher(new URL("/v1/status", baseUrl), { headers: { authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(1000) });
+        if (response.ok)
+            return;
+    }
+    catch { }
+    throw new CliError('The local AI Gateway is unavailable. Run "cc-byok gateway start" in another terminal.', "GATEWAY_UNAVAILABLE");
 }
 //# sourceMappingURL=launch.js.map

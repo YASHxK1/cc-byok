@@ -12,7 +12,10 @@ export type ErrorCode =
   | "TARGET_NOT_FOUND"
   | "SPAWN_FAILED"
   | "CANCELLED"
-  | "INVALID_INPUT";
+  | "INVALID_INPUT"
+  | "GATEWAY_UNAVAILABLE"
+  | "CODEX_UNAVAILABLE"
+  | "CODEX_TOO_OLD";
 
 export class CliError extends Error {
   constructor(

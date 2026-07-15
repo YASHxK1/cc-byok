@@ -24,6 +24,15 @@ export class KeyringSecretStore {
             throw keychainError(error);
         }
     }
+    async delete(provider) {
+        try {
+            await this.entry(provider).deletePassword();
+        }
+        catch (error) {
+            if (!isMissingCredential(error))
+                throw keychainError(error);
+        }
+    }
     entry(provider) {
         return new AsyncEntry(SERVICE_NAME, provider);
     }

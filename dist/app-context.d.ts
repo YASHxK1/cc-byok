@@ -16,6 +16,7 @@ export interface AppContext {
     output: Output;
     cwd: string;
     env: NodeJS.ProcessEnv;
+    fetch?: typeof fetch;
     setExitCode(code: number): void;
 }
 export declare function createAppContext(): AppContext;

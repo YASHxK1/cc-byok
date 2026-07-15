@@ -7,6 +7,7 @@ export interface SecretStore {
   get(provider: string): Promise<string | null>;
   has(provider: string): Promise<boolean>;
   set(provider: string, apiKey: string): Promise<void>;
+  delete?(provider: string): Promise<void>;
 }
 
 export class KeyringSecretStore implements SecretStore {
@@ -30,6 +31,14 @@ export class KeyringSecretStore implements SecretStore {
       await this.entry(provider).setPassword(apiKey);
     } catch (error) {
       throw keychainError(error);
+    }
+  }
+
+  async delete(provider: string): Promise<void> {
+    try {
+      await this.entry(provider).deletePassword();
+    } catch (error) {
+      if (!isMissingCredential(error)) throw keychainError(error);
     }
   }
 

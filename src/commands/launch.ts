@@ -64,6 +64,7 @@ export async function runLaunch(
     provider.config.baseUrl,
     target.protocol,
   );
+  if (providerId === "ai-gateway" && context.fetch) await requireGatewayHealth(context.fetch, baseUrl, apiKey);
   const targetEnvironment = buildTargetEnvironment({
     baseUrl,
     apiKey,
@@ -108,4 +109,12 @@ export async function runLaunch(
     },
   });
   context.setExitCode(exitCode);
+}
+
+async function requireGatewayHealth(fetcher: typeof fetch, baseUrl: string, apiKey: string): Promise<void> {
+  try {
+    const response = await fetcher(new URL("/v1/status", baseUrl), { headers: { authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(1000) });
+    if (response.ok) return;
+  } catch {}
+  throw new CliError('The local AI Gateway is unavailable. Run "cc-byok gateway start" in another terminal.', "GATEWAY_UNAVAILABLE");
 }

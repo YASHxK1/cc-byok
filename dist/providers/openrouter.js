@@ -3,9 +3,9 @@ export const OPENROUTER = {
     displayName: "OpenRouter",
     defaultBaseUrl: "https://openrouter.ai/api",
     routingMode: "Anthropic and OpenAI-compatible APIs",
-    supportedProtocols: ["anthropic", "openai"],
+    supportedProtocols: ["anthropic", "openai", "openai-chat"],
     resolveBaseUrl(configuredBaseUrl, protocol) {
-        return protocol === "openai"
+        return protocol !== "anthropic"
             ? "https://openrouter.ai/api/v1"
             : configuredBaseUrl;
     },

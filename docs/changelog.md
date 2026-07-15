@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Integrated `cc-byok gateway` with Codex login/logout, foreground lifecycle,
+  status, managed bearer keys, and key rotation.
+- Added authenticated loopback OpenAI Chat Completions, model-list, and status
+  endpoints backed by `codex app-server`, including SSE and function tools.
+- Added an Anthropic Messages translation endpoint with text streaming,
+  system prompts, tool use, and tool-result continuation for Claude Code.
+- Added Codex version checks and local gateway launch preflight for OpenCode.
+- Added the built-in `ai-gateway` provider for the local Codex-backed OpenAI
+  Chat Completions gateway at `http://127.0.0.1:3000/v1`.
+- Added protocol capability checks that allow the local gateway with Claude
+  Code and OpenCode while rejecting OpenAI Responses targets before launch.
+
 ## v0.3.2
 
 `cc-byok` expanded from a Claude Code-only BYOK launcher into a multi-agent

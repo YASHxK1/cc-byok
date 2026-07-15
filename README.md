@@ -2,11 +2,11 @@
 
 `cc-byok` launches coding agents with your own provider keys. It supports
 Claude Code, Codex CLI, Codex App, and OpenCode through OpenRouter, Vercel AI
-Gateway, or custom Anthropic-compatible gateways.
+Gateway, the local Codex-backed AI Gateway, or custom Anthropic-compatible gateways.
 
-It is a local configuration wrapper. It does not proxy requests, translate
-protocols, log API keys, or send network requests itself. The selected target
-connects directly to the configured provider.
+It is a local configuration wrapper and includes an optional loopback-only
+Codex-backed OpenAI Chat Completions gateway. Other providers are contacted
+directly by the selected target. API keys are never logged.
 
 ## Documentation
 
@@ -20,7 +20,8 @@ connects directly to the configured provider.
 
 - Launch Claude Code, Codex CLI, Codex App, and OpenCode from one CLI
 - Keep API keys in the operating system keychain
-- Configure OpenRouter and Vercel AI Gateway as built-in providers
+- Configure OpenRouter, Vercel AI Gateway, and the local Codex-backed AI Gateway
+  as built-in providers
 - Add custom Anthropic-compatible gateways from the CLI
 - Select an active provider and model once, then reuse it
 - Override provider and model per launch with `--provider` and `--model`
@@ -116,6 +117,13 @@ cc-byok launch codex-app -- /path/to/project
 cc-byok init
 cc-byok provider add openrouter
 cc-byok provider add vercel
+cc-byok provider add ai-gateway
+cc-byok gateway login [--device-auth]
+cc-byok gateway start [--port 3000] [--workspace <path>] [--verbose]
+cc-byok gateway status
+cc-byok gateway key
+cc-byok gateway rotate-key
+cc-byok gateway logout
 cc-byok provider add <provider-id> --base-url <url> [--display-name <name>]
 cc-byok provider list
 cc-byok target list
@@ -126,18 +134,36 @@ cc-byok launch [target] [--provider <provider-id>] [--model <model-id>] [--resto
 
 ## Providers
 
-`cc-byok` includes two built-in providers:
+`cc-byok` includes three built-in providers:
 
 | Provider ID | Anthropic endpoint | OpenAI endpoint |
 |---|---|---|
 | `openrouter` | `https://openrouter.ai/api` | `https://openrouter.ai/api/v1` |
 | `vercel` | `https://ai-gateway.vercel.sh` | `https://ai-gateway.vercel.sh/v1` |
+| `ai-gateway` | `http://127.0.0.1:3000` | `http://127.0.0.1:3000/v1` (Chat Completions) |
 
 Add a built-in provider:
 
 ```bash
 cc-byok provider add openrouter
 cc-byok provider add vercel
+cc-byok provider add ai-gateway
+```
+
+The local gateway key is generated and stored automatically; it is not
+prompted for. Start the foreground server in a separate terminal:
+
+```bash
+cc-byok gateway login
+cc-byok gateway start
+```
+
+Then launch Claude Code or OpenCode from another terminal:
+
+```bash
+cc-byok use ai-gateway codex-latest
+cc-byok launch claude
+# or: cc-byok launch opencode
 ```
 
 Add a custom Anthropic-compatible gateway:

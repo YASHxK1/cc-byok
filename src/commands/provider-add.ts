@@ -5,6 +5,7 @@ import {
   isBuiltInProvider,
   requireConfiguredProvider,
 } from "../core/provider-registry.js";
+import { ensureGatewayKey, GATEWAY_PROVIDER_ID } from "../gateway/key.js";
 
 export interface ProviderAddOptions {
   baseUrl?: string;
@@ -18,6 +19,13 @@ export async function runProviderAdd(
 ): Promise<void> {
   const cleanProviderId = providerId.trim().toLowerCase();
   validateProviderId(cleanProviderId);
+
+  if (cleanProviderId === GATEWAY_PROVIDER_ID) {
+    if (options.baseUrl || options.displayName) throw new CliError(`Built-in provider "${cleanProviderId}" has managed settings and does not accept custom URL or display-name options.`, "INVALID_INPUT");
+    await ensureGatewayKey(context.secrets);
+    context.output.log('AI Gateway local bearer key initialized. Run "cc-byok gateway start" before launching OpenCode.');
+    return;
+  }
 
   let config = await context.config.read();
   const builtIn = getBuiltInProvider(cleanProviderId);

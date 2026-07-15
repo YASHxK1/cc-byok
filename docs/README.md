@@ -1,10 +1,11 @@
 # cc-byok Documentation
 
-These guides document `cc-byok` v0.3.2.
+These guides document the current `cc-byok` source tree.
 
 `cc-byok` launches Claude Code, Codex, Codex App, and OpenCode through BYOK
-providers and compatible gateways. Provider API keys are stored in your
-operating system keychain.
+providers and compatible gateways. It also includes an authenticated,
+loopback-only Codex-backed OpenAI Chat Completions gateway. Provider keys and
+the local gateway bearer key are stored in your operating system keychain.
 
 ## Guides
 
@@ -12,21 +13,14 @@ operating system keychain.
   switching providers, and troubleshooting
 - [Changelog](changelog.md): release notes and compatibility notes for recent
   versions
-- [Gateway Providers](gateways.md): Vercel AI Gateway and custom
-  Anthropic-compatible gateway setup
+- [Gateway Providers](gateways.md): integrated local Codex gateway, Vercel AI
+  Gateway, and custom gateways
+- [Local Gateway Troubleshooting](gateway-troubleshooting.md): authentication,
+  startup, model, protocol, keychain, streaming, and tool-call errors
 - [OpenRouter and Claude Code Step-by-Step](openrouter-claude-code-guide.md):
   complete OpenRouter walkthrough from installation to chatting with a model
 - [Installation](installation.md): requirements, npm and source installation,
   upgrades, and uninstalling
-
-## Project Documents
-
-The following documents preserve the original v0.1 product and implementation
-planning. They are historical and may not describe current v0.3.2 behavior.
-
-- [Product requirements](project/prd.md)
-- [Original product idea](project/idea.md)
-- [Build plan](project/BUILD_PLAN.md)
 
 ## Quick Start
 
@@ -50,4 +44,22 @@ cc-byok provider add vercel
 cc-byok launch codex-app --provider vercel --model deepseek/deepseek-v4-pro
 ```
 
-The selected target command must already be installed on `PATH`.
+For the local Codex-backed AI Gateway:
+
+```bash
+cc-byok gateway login
+cc-byok provider add ai-gateway
+cc-byok use ai-gateway codex-latest
+cc-byok gateway start
+```
+
+Keep the foreground gateway running. In another terminal:
+
+```bash
+cc-byok launch claude --provider ai-gateway --model codex-latest
+# or:
+cc-byok launch opencode --provider ai-gateway --model codex-latest
+```
+
+The selected target command must already be installed on `PATH`. The local
+gateway additionally requires Codex CLI 0.144.4 or newer.

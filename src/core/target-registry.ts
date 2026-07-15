@@ -1,6 +1,6 @@
 import { CliError } from "./errors.js";
 
-export type ProtocolProfile = "anthropic" | "openai";
+export type ProtocolProfile = "anthropic" | "openai" | "openai-chat";
 export type ArgumentProfile = "codex";
 
 export interface LaunchTarget {
@@ -42,7 +42,7 @@ const targetList: LaunchTarget[] = [
     id: "opencode",
     name: "OpenCode",
     command: "opencode",
-    protocol: "openai",
+    protocol: "openai-chat",
     defaultArgs: [],
   },
 ];

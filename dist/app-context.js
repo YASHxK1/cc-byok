@@ -14,6 +14,7 @@ export function createAppContext() {
         output: console,
         cwd: process.cwd(),
         env: process.env,
+        fetch: globalThis.fetch,
         setExitCode(code) {
             process.exitCode = code;
         },

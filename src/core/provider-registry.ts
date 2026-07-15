@@ -3,6 +3,7 @@ import { CliError } from "./errors.js";
 import type { ProtocolProfile } from "./target-registry.js";
 import { OPENROUTER } from "../providers/openrouter.js";
 import { VERCEL_AI_GATEWAY } from "../providers/vercel-ai-gateway.js";
+import { AI_GATEWAY } from "../providers/ai-gateway.js";
 
 export interface ProviderDefinition {
   id: string;
@@ -19,6 +20,7 @@ export interface ProviderDefinition {
 const providers = new Map<string, ProviderDefinition>([
   [OPENROUTER.id, OPENROUTER],
   [VERCEL_AI_GATEWAY.id, VERCEL_AI_GATEWAY],
+  [AI_GATEWAY.id, AI_GATEWAY],
 ]);
 
 export function listProviderDefinitions(): ProviderDefinition[] {
@@ -64,7 +66,7 @@ export function validateCompatibility(
 ): void {
   if (!provider.supportedProtocols.includes(protocol)) {
     throw new CliError(
-      `Target expects the "${protocol}" protocol, but provider "${provider.id}" is Anthropic-compatible only.`,
+      `Target expects the "${protocol}" protocol, but provider "${provider.id}" supports only: ${provider.supportedProtocols.join(", ")}.`,
       "INCOMPATIBLE_TARGET",
     );
   }

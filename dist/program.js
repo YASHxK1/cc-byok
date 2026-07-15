@@ -6,6 +6,7 @@ import { runProviderList } from "./commands/provider-list.js";
 import { runStatus } from "./commands/status.js";
 import { runTargetList } from "./commands/target-list.js";
 import { runUse } from "./commands/use.js";
+import { runGatewayKey, runGatewayLogin, runGatewayLogout, runGatewayRotateKey, runGatewayStart, runGatewayStatus } from "./commands/gateway.js";
 export function createProgram(context) {
     const program = new Command()
         .name("cc-byok")
@@ -46,6 +47,13 @@ export function createProgram(context) {
         .command("list")
         .description("List supported launch targets")
         .action(() => runTargetList(context));
+    const gateway = program.command("gateway").description("Run the local Codex-backed Anthropic and OpenAI gateway");
+    gateway.command("login").option("--device-auth", "use device-code authentication").action((options) => runGatewayLogin(context, options.deviceAuth));
+    gateway.command("start").option("--port <port>", "loopback port", "3000").option("--workspace <path>", "Codex workspace").option("--verbose", "show gateway and Codex logs").action((options) => runGatewayStart(context, options));
+    gateway.command("status").action(() => runGatewayStatus(context));
+    gateway.command("key").description("Print the local bearer key").action(() => runGatewayKey(context));
+    gateway.command("rotate-key").action(() => runGatewayRotateKey(context));
+    gateway.command("logout").action(() => runGatewayLogout(context));
     program
         .command("launch")
         .description("Launch claude, codex, codex-app, or opencode")

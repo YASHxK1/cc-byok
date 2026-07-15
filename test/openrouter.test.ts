@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildTargetEnvironment } from "../src/core/env-builder.js";
 import { OPENROUTER } from "../src/providers/openrouter.js";
 import { VERCEL_AI_GATEWAY } from "../src/providers/vercel-ai-gateway.js";
+import { AI_GATEWAY } from "../src/providers/ai-gateway.js";
 
 describe("target environment builder", () => {
   it("builds the Claude environment", () => {
@@ -56,5 +57,16 @@ describe("built-in provider endpoints", () => {
         "openai",
       ),
     ).toBe("https://ai-gateway.vercel.sh/v1");
+  });
+
+  it("registers the local AI Gateway Anthropic and chat-completions endpoints", () => {
+    expect(AI_GATEWAY.defaultBaseUrl).toBe("http://127.0.0.1:3000/v1");
+    expect(AI_GATEWAY.supportedProtocols).toEqual(["anthropic", "openai-chat"]);
+    expect(
+      AI_GATEWAY.resolveBaseUrl(AI_GATEWAY.defaultBaseUrl, "openai-chat"),
+    ).toBe("http://127.0.0.1:3000/v1");
+    expect(
+      AI_GATEWAY.resolveBaseUrl(AI_GATEWAY.defaultBaseUrl, "anthropic"),
+    ).toBe("http://127.0.0.1:3000");
   });
 });

@@ -188,6 +188,51 @@ describe("MVP workflow", () => {
       ANTHROPIC_MODEL: "anthropic/claude-sonnet-4.6",
     });
   });
+
+  it("launches OpenCode through the local AI Gateway", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+
+    await runProviderAdd(fixture.context, "ai-gateway");
+    await runUse(fixture.context, "ai-gateway", "codex-latest");
+    await runLaunch(fixture.context, "opencode", []);
+
+    expect(fixture.launcher.request?.env).toMatchObject({
+      OPENAI_BASE_URL: "http://127.0.0.1:3000/v1",
+      OPENAI_API_KEY: fixture.secrets.values.get("ai-gateway"),
+      OPENAI_MODEL: "codex-latest",
+    });
+    expect(fixture.secrets.values.get("ai-gateway")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+  });
+
+  it("launches Claude through the local Anthropic-compatible AI Gateway", async () => {
+    const fixture = await createFixture(); await runInit(fixture.context);
+    let healthUrl = "";
+    fixture.context.fetch = async (input) => { healthUrl = String(input); return new Response(null, { status: 200 }); };
+    await runProviderAdd(fixture.context, "ai-gateway"); await runUse(fixture.context, "ai-gateway", "codex-latest");
+    await runLaunch(fixture.context, "claude", []);
+    expect(healthUrl).toBe("http://127.0.0.1:3000/v1/status");
+    expect(fixture.launcher.request?.env).toMatchObject({
+      ANTHROPIC_BASE_URL: "http://127.0.0.1:3000",
+      ANTHROPIC_AUTH_TOKEN: fixture.secrets.values.get("ai-gateway"),
+      ANTHROPIC_API_KEY: "",
+      ANTHROPIC_MODEL: "codex-latest",
+    });
+  });
+
+  it("rejects the local AI Gateway for Codex Responses targets", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+    await runProviderAdd(fixture.context, "ai-gateway");
+
+    await expect(
+      runLaunch(fixture.context, "codex", [], {
+        provider: "ai-gateway",
+        model: "codex-latest",
+      }),
+    ).rejects.toMatchObject({ code: "INCOMPATIBLE_TARGET" });
+    expect(fixture.launcher.request).toBeNull();
+  });
 });
 
 class MemorySecretStore implements SecretStore {

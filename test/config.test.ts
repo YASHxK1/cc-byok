@@ -35,6 +35,11 @@ describe("FileConfigStore", () => {
           baseUrl: "https://ai-gateway.vercel.sh",
           type: "anthropic-compatible",
         },
+        "ai-gateway": {
+          displayName: "AI Gateway (local Codex)",
+          baseUrl: "http://127.0.0.1:3000/v1",
+          type: "openai-compatible",
+        },
       },
     });
     expect(JSON.parse(await readFile(configFile, "utf8"))).toEqual(result.config);
@@ -55,6 +60,11 @@ describe("FileConfigStore", () => {
           baseUrl: "https://openrouter.ai/api",
           type: "anthropic-compatible" as const,
         },
+        "ai-gateway": {
+          displayName: "AI Gateway (local Codex)",
+          baseUrl: "http://127.0.0.1:3000/v1",
+          type: "openai-compatible" as const,
+        },
         vercel: {
           displayName: "Vercel AI Gateway",
           baseUrl: "https://ai-gateway.vercel.sh",
@@ -70,7 +80,7 @@ describe("FileConfigStore", () => {
     expect(result.config).toEqual(configured);
   });
 
-  it("migrates v1 OpenRouter config and adds Vercel AI Gateway", async () => {
+  it("migrates v1 OpenRouter config and adds built-in gateways", async () => {
     const directory = await temporaryDirectory();
     const configFile = join(directory, "config.json");
     await writeFile(
@@ -96,6 +106,11 @@ describe("FileConfigStore", () => {
       displayName: "Vercel AI Gateway",
       baseUrl: "https://ai-gateway.vercel.sh",
       type: "anthropic-compatible",
+    });
+    expect(config.providers["ai-gateway"]).toEqual({
+      displayName: "AI Gateway (local Codex)",
+      baseUrl: "http://127.0.0.1:3000/v1",
+      type: "openai-compatible",
     });
   });
 
@@ -128,6 +143,11 @@ describe("FileConfigStore", () => {
           displayName: "Vercel AI Gateway",
           baseUrl: "https://ai-gateway.vercel.sh",
           type: "ai-gateway",
+        },
+        "ai-gateway": {
+          displayName: "AI Gateway (local Codex)",
+          baseUrl: "http://127.0.0.1:3000/v1",
+          type: "openai-compatible",
         },
       },
       targets: {},
