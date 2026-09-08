@@ -11,7 +11,7 @@ The default endpoints are:
 | Client | Base URL |
 |---|---|
 | Claude Code / Anthropic Messages | `http://127.0.0.1:3000` |
-| OpenCode / OpenAI Chat Completions | `http://127.0.0.1:3000/v1` |
+| External clients / OpenAI Chat Completions | `http://127.0.0.1:3000/v1` |
 
 The gateway runs in the foreground. Keep its terminal open while using a
 client, and stop it with `Ctrl+C`.
@@ -60,8 +60,6 @@ Keep that terminal running. In a second terminal, launch the client:
 
 ```bash
 cc-byok launch claude
-# or
-cc-byok launch opencode
 ```
 
 If a different port was configured, inspect the persisted endpoint:
@@ -305,8 +303,8 @@ The bearer key must not be placed manually in `~/.cc-byok/config.json`.
 
 ## Tool Call Is Unknown, Missing, or Expired
 
-Tool calls are suspended in gateway memory while Claude Code or OpenCode runs
-the requested client-side tool. A tool result can fail when:
+Tool calls are suspended in gateway memory while the client runs the requested
+client-side tool. A tool result can fail when:
 
 - its `tool_use_id` or `tool_call_id` does not match the pending call;
 - only some results from a parallel tool-call batch are returned;
@@ -356,5 +354,4 @@ cc-byok status
 
 Do not share the output of `cc-byok gateway key`, provider keys, OAuth URLs,
 authorization headers, full prompts, or tool results. When reporting a problem,
-include the command, error text, operating system, versions, and whether the
-problem affects Claude Code, OpenCode, or both.
+include the command, error text, operating system, and versions.

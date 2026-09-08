@@ -59,12 +59,9 @@ describe("built-in provider endpoints", () => {
     ).toBe("https://ai-gateway.vercel.sh/v1");
   });
 
-  it("registers the local AI Gateway Anthropic and chat-completions endpoints", () => {
+  it("registers the local AI Gateway Anthropic endpoint", () => {
     expect(AI_GATEWAY.defaultBaseUrl).toBe("http://127.0.0.1:3000/v1");
-    expect(AI_GATEWAY.supportedProtocols).toEqual(["anthropic", "openai-chat"]);
-    expect(
-      AI_GATEWAY.resolveBaseUrl(AI_GATEWAY.defaultBaseUrl, "openai-chat"),
-    ).toBe("http://127.0.0.1:3000/v1");
+    expect(AI_GATEWAY.supportedProtocols).toEqual(["anthropic"]);
     expect(
       AI_GATEWAY.resolveBaseUrl(AI_GATEWAY.defaultBaseUrl, "anthropic"),
     ).toBe("http://127.0.0.1:3000");

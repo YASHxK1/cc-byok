@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -16,17 +16,19 @@ describe("CLI argument parsing", () => {
   });
 
   it("separates an explicit target from target arguments", () => {
-    expect(splitLaunchValues(["codex-app", "--help"])).toEqual([
-      "codex-app",
+    expect(splitLaunchValues(["chatgpt-app", "--help"])).toEqual([
+      "chatgpt-app",
       ["--help"],
     ]);
   });
 
-  it("launches codex-app with Vercel and passes the model unchanged", async () => {
+  it("launches chatgpt-app with Vercel and passes the model unchanged", async () => {
     const codexHome = await mkdtemp(join(tmpdir(), "cc-byok-codex-app-"));
     cleanup.push(codexHome);
     let request: LaunchRequest | undefined;
-    const context = fakeContext(baseConfig(), (value) => {
+    const config = baseConfig();
+    config.extraModels = ["deepseek/deepseek-v4-pro"];
+    const context = fakeContext(config, (value) => {
       request = value;
     });
     context.env.CODEX_HOME = codexHome;
@@ -36,7 +38,7 @@ describe("CLI argument parsing", () => {
         "node",
         "cc-byok",
         "launch",
-        "codex-app",
+        "chatgpt-app",
         "--provider",
         "vercel",
         "--model",
@@ -48,16 +50,16 @@ describe("CLI argument parsing", () => {
     );
 
     expect(request).toMatchObject({
-      targetId: "codex-app",
-      targetName: "Codex App",
-      command: "codex",
+      targetId: "chatgpt-app",
+      targetName: "ChatGPT App",
+      command: "chatgpt",
       env: {
         OPENAI_BASE_URL: "https://ai-gateway.vercel.sh/v1",
         OPENAI_API_KEY: "secret",
         OPENAI_MODEL: "deepseek/deepseek-v4-pro",
       },
     });
-    expect(request?.args).toEqual(["app", "/home/user/project"]);
+    expect(request?.args).toEqual(["/home/user/project"]);
     expect(request?.args.at(-1)).toBe("/home/user/project");
 
     const codexConfig = await readFile(join(codexHome, "config.toml"), "utf8");
@@ -76,7 +78,7 @@ describe("CLI argument parsing", () => {
     expect(modelCatalog).toContain('"slug": "deepseek/deepseek-v4-pro"');
   });
 
-  it("rejects an Anthropic-only custom provider for codex-app", async () => {
+  it("rejects an Anthropic-only custom provider for chatgpt-app", async () => {
     const config = baseConfig();
     config.providers["team-gateway"] = {
       displayName: "Team Gateway",
@@ -90,7 +92,7 @@ describe("CLI argument parsing", () => {
           "node",
           "cc-byok",
           "launch",
-          "codex-app",
+          "chatgpt-app",
           "--provider",
           "team-gateway",
           "--model",
@@ -187,7 +189,9 @@ describe("CLI argument parsing", () => {
 
   it("resolves codex restore to resume --last with passthrough args", async () => {
     let request: LaunchRequest | undefined;
-    const context = fakeContext(baseConfig(), (value) => {
+    const config = baseConfig();
+    config.extraModels = ["openai/gpt-5"];
+    const context = fakeContext(config, (value) => {
       request = value;
     });
 
@@ -226,33 +230,45 @@ describe("CLI argument parsing", () => {
     ]);
   });
 
-  it("rejects codex-app restore before launching", async () => {
-    let launched = false;
-    const context = fakeContext(baseConfig(), () => {
-      launched = true;
+  it("restores chatgpt-app without BYOK configuration", async () => {
+    let request: LaunchRequest | undefined;
+    const codexHome = await mkdtemp(join(tmpdir(), "cc-byok-codex-app-restore-"));
+    cleanup.push(codexHome);
+    const context = fakeContext(baseConfig(), (value) => {
+      request = value;
     });
+    context.env = { CODEX_HOME: codexHome, OPENAI_API_KEY: "original-key" };
+    context.config.read = async () => {
+      throw new Error("ChatGPT restoration must not read cc-byok configuration");
+    };
+    await writeFile(join(codexHome, "config.toml.cc-byok.bak"), 'model = "gpt-5.5"\n');
+    await writeFile(join(codexHome, "config.toml"), 'model = "openai/gpt-5"\n# cc-byok:begin\n# cc-byok:end\n');
+    await writeFile(join(codexHome, "cc-byok-models.json"), "{}\n");
 
-    await expect(
-      createProgram(context).parseAsync(
-        [
-          "node",
-          "cc-byok",
-          "launch",
-          "codex-app",
-          "--provider",
-          "vercel",
-          "--model",
-          "openai/gpt-5",
-          "--restore",
-        ],
-        { from: "node" },
-      ),
-    ).rejects.toMatchObject({ code: "UNSUPPORTED_RESTORE" });
-    expect(launched).toBe(false);
+    await createProgram(context).parseAsync(
+      [
+        "node",
+        "cc-byok",
+        "launch",
+        "chatgpt-app",
+        "--restore",
+      ],
+      { from: "node" },
+    );
+
+    expect(request).toMatchObject({
+      targetId: "chatgpt-app",
+      command: "chatgpt",
+      args: [],
+      env: { CODEX_HOME: codexHome, OPENAI_API_KEY: "original-key" },
+    });
+    await expect(readFile(join(codexHome, "config.toml"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("reports a missing provider key for an explicit target", async () => {
-    const context = fakeContext(baseConfig(), () => undefined);
+    const config = baseConfig();
+    config.extraModels = ["openai/gpt-5"];
+    const context = fakeContext(config, () => undefined);
     context.secrets.get = async () => null;
 
     await expect(
@@ -296,8 +312,8 @@ describe("CLI argument parsing", () => {
 
     expect(logs.join("\n")).toContain("Claude Code [claude]");
     expect(logs.join("\n")).toContain("Codex [codex]");
-    expect(logs.join("\n")).toContain("Codex App [codex-app]");
-    expect(logs.join("\n")).toContain("restore unsupported");
+    expect(logs.join("\n")).toContain("ChatGPT App [chatgpt-app]");
+    expect(logs.join("\n")).toContain("restore supported");
     expect(logs.join("\n")).not.toContain("secret");
   });
 });
@@ -315,6 +331,7 @@ function baseConfig(): Config {
     version: 2,
     activeProvider: "openrouter",
     activeModel: "qwen/qwen3-coder",
+    extraModels: [],
     providers: {
       openrouter: {
         displayName: "OpenRouter",

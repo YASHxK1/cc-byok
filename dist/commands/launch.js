@@ -2,12 +2,29 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildTargetArguments } from "../core/argument-builder.js";
-import { configureCodexAppProfile } from "../core/codex-app-profile.js";
+import { configureCodexAppProfile, restoreCodexAppProfile, } from "../core/codex-app-profile.js";
 import { buildTargetEnvironment } from "../core/env-builder.js";
 import { CliError } from "../core/errors.js";
 import { requireConfiguredProvider, validateCompatibility, } from "../core/provider-registry.js";
 import { resolveTarget } from "../core/target-registry.js";
 export async function runLaunch(context, targetId, targetArgs, options = {}) {
+    const target = resolveTarget(targetId ?? "claude");
+    const restore = options.restore ?? false;
+    if (target.id === "chatgpt-app" && restore) {
+        const codexHome = context.env.CODEX_HOME?.trim() || join(homedir(), ".codex");
+        await restoreCodexAppProfile(codexHome);
+        context.output.log("Restored the original ChatGPT App configuration.");
+        const exitCode = await context.launcher.launch({
+            targetId: target.id,
+            targetName: target.name,
+            command: target.command,
+            args: targetArgs,
+            cwd: context.cwd,
+            env: context.env,
+        });
+        context.setExitCode(exitCode);
+        return;
+    }
     const config = await context.config.read();
     const providerId = options.provider?.trim() || config.activeProvider;
     const model = options.model?.trim() || config.activeModel;
@@ -17,13 +34,18 @@ export async function runLaunch(context, targetId, targetArgs, options = {}) {
     if (!model) {
         throw new CliError(`No active model is selected. Run "cc-byok use ${providerId} <model-id>" or pass --provider and --model.`, "MISSING_MODEL");
     }
-    const target = resolveTarget(targetId ?? "claude");
-    const restore = options.restore ?? false;
     if (restore && !target.restoreArgs) {
         throw new CliError(`${target.name} does not support delegated restore through cc-byok. Run "cc-byok launch ${target.id} -- <target arguments...>" to pass target-specific arguments directly.`, "UNSUPPORTED_RESTORE");
     }
     const provider = requireConfiguredProvider(config, providerId);
     validateCompatibility(provider.definition, target.protocol);
+    const knownModels = new Set([
+        ...(config.activeModel ? [config.activeModel] : []),
+        ...config.extraModels,
+    ]);
+    if (!knownModels.has(model)) {
+        throw new CliError(`Unknown model "${model}". Add it with "cc-byok catalog add ${model}" or select it with "cc-byok use ${providerId} ${model}".`, "UNKNOWN_MODEL");
+    }
     const apiKey = await context.secrets.get(providerId);
     if (!apiKey) {
         throw new CliError(`No API key is stored for ${provider.definition.displayName}. Run "cc-byok provider add ${providerId}".`, "MISSING_KEY");
@@ -37,7 +59,7 @@ export async function runLaunch(context, targetId, targetArgs, options = {}) {
         model,
         protocol: target.protocol,
     });
-    if (target.id === "codex-app") {
+    if (target.id === "chatgpt-app") {
         const codexHome = context.env.CODEX_HOME?.trim() || join(homedir(), ".codex");
         const credentialHelper = fileURLToPath(new URL("../credential-helper.js", import.meta.url));
         await configureCodexAppProfile({
@@ -47,6 +69,7 @@ export async function runLaunch(context, targetId, targetArgs, options = {}) {
             baseUrl,
             model,
             credentialHelper,
+            extraModels: config.extraModels,
         });
     }
     context.output.log(`Launching ${target.name} with ${provider.definition.displayName} (${model})...`);

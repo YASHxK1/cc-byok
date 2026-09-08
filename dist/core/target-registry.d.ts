@@ -1,4 +1,4 @@
-export type ProtocolProfile = "anthropic" | "openai" | "openai-chat";
+export type ProtocolProfile = "anthropic" | "openai";
 export type ArgumentProfile = "codex";
 export interface LaunchTarget {
     id: string;

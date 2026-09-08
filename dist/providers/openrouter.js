@@ -3,7 +3,7 @@ export const OPENROUTER = {
     displayName: "OpenRouter",
     defaultBaseUrl: "https://openrouter.ai/api",
     routingMode: "Anthropic and OpenAI-compatible APIs",
-    supportedProtocols: ["anthropic", "openai", "openai-chat"],
+    supportedProtocols: ["anthropic", "openai"],
     resolveBaseUrl(configuredBaseUrl, protocol) {
         return protocol !== "anthropic"
             ? "https://openrouter.ai/api/v1"

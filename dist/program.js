@@ -7,6 +7,7 @@ import { runStatus } from "./commands/status.js";
 import { runTargetList } from "./commands/target-list.js";
 import { runUse } from "./commands/use.js";
 import { runGatewayKey, runGatewayLogin, runGatewayLogout, runGatewayRotateKey, runGatewayStart, runGatewayStatus } from "./commands/gateway.js";
+import { runCatalogAdd, runCatalogList, runCatalogRemove } from "./commands/catalog.js";
 export function createProgram(context) {
     const program = new Command()
         .name("cc-byok")
@@ -47,6 +48,23 @@ export function createProgram(context) {
         .command("list")
         .description("List supported launch targets")
         .action(() => runTargetList(context));
+    const catalog = program
+        .command("catalog")
+        .description("Manage the shared model catalog");
+    catalog
+        .command("add")
+        .description("Add a model to the shared model catalog")
+        .argument("<model-id>", "provider model ID")
+        .action((modelId) => runCatalogAdd(context, modelId));
+    catalog
+        .command("remove")
+        .description("Remove a model from the shared model catalog")
+        .argument("<model-id>", "provider model ID")
+        .action((modelId) => runCatalogRemove(context, modelId));
+    catalog
+        .command("list")
+        .description("List models in the shared model catalog")
+        .action(() => runCatalogList(context));
     const gateway = program.command("gateway").description("Run the local Codex-backed Anthropic and OpenAI gateway");
     gateway.command("login").option("--device-auth", "use device-code authentication").action((options) => runGatewayLogin(context, options.deviceAuth));
     gateway.command("start").option("--port <port>", "loopback port", "3000").option("--workspace <path>", "Codex workspace").option("--verbose", "show gateway and Codex logs").action((options) => runGatewayStart(context, options));
@@ -56,13 +74,13 @@ export function createProgram(context) {
     gateway.command("logout").action(() => runGatewayLogout(context));
     program
         .command("launch")
-        .description("Launch claude, codex, codex-app, or opencode")
+        .description("Launch claude, codex, or chatgpt-app")
         .argument("[values...]", "optional target followed by target arguments")
         .option("--provider <provider>", "override the active provider")
         .option("--model <model>", "override the active model")
-        .option("--restore", "restore the previous session when the target supports it")
+        .option("--restore", "restore the previous session, or original ChatGPT App settings")
         .allowUnknownOption(true)
-        .addHelpText("after", "\nSupported targets: claude, codex, codex-app, opencode")
+        .addHelpText("after", "\nSupported targets: claude, codex, chatgpt-app")
         .action((values = [], options) => {
         const [target, args] = splitLaunchValues(values);
         return runLaunch(context, target, args, options);

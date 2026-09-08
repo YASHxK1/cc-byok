@@ -14,7 +14,7 @@ It requires:
 
 - Codex CLI 0.144.4 or newer on `PATH`
 - a Codex account authenticated through `cc-byok gateway login`
-- OpenCode or another OpenAI Chat Completions client
+- an OpenAI Chat Completions client for gateway chat use
 
 Supported provider paths:
 
@@ -37,12 +37,11 @@ Check Node.js and any target commands you plan to use:
 node --version
 claude --version
 codex --version
-opencode --version
 ```
 
-Only the selected target is required. `codex-app` uses the `codex app`
-subcommand supplied by Codex CLI. `cc-byok gateway start` always requires
-Codex CLI, even when the gateway client is OpenCode.
+Only the selected target is required. `chatgpt-app` uses the `chatgpt`
+launcher supplied by the ChatGPT desktop app. `cc-byok gateway start` always
+requires Codex CLI.
 
 ## Install From npm
 

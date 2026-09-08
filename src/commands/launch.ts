@@ -3,7 +3,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppContext } from "../app-context.js";
 import { buildTargetArguments } from "../core/argument-builder.js";
-import { configureCodexAppProfile } from "../core/codex-app-profile.js";
+import {
+  configureCodexAppProfile,
+  restoreCodexAppProfile,
+} from "../core/codex-app-profile.js";
 import { buildTargetEnvironment } from "../core/env-builder.js";
 import { CliError } from "../core/errors.js";
 import {
@@ -24,6 +27,24 @@ export async function runLaunch(
   targetArgs: string[],
   options: LaunchOptions = {},
 ): Promise<void> {
+  const target = resolveTarget(targetId ?? "claude");
+  const restore = options.restore ?? false;
+  if (target.id === "chatgpt-app" && restore) {
+    const codexHome = context.env.CODEX_HOME?.trim() || join(homedir(), ".codex");
+    await restoreCodexAppProfile(codexHome);
+    context.output.log("Restored the original ChatGPT App configuration.");
+    const exitCode = await context.launcher.launch({
+      targetId: target.id,
+      targetName: target.name,
+      command: target.command,
+      args: targetArgs,
+      cwd: context.cwd,
+      env: context.env,
+    });
+    context.setExitCode(exitCode);
+    return;
+  }
+
   const config = await context.config.read();
   const providerId = options.provider?.trim() || config.activeProvider;
   const model = options.model?.trim() || config.activeModel;
@@ -40,8 +61,6 @@ export async function runLaunch(
     );
   }
 
-  const target = resolveTarget(targetId ?? "claude");
-  const restore = options.restore ?? false;
   if (restore && !target.restoreArgs) {
     throw new CliError(
       `${target.name} does not support delegated restore through cc-byok. Run "cc-byok launch ${target.id} -- <target arguments...>" to pass target-specific arguments directly.`,
@@ -51,6 +70,17 @@ export async function runLaunch(
 
   const provider = requireConfiguredProvider(config, providerId);
   validateCompatibility(provider.definition, target.protocol);
+
+  const knownModels = new Set<string>([
+    ...(config.activeModel ? [config.activeModel] : []),
+    ...config.extraModels,
+  ]);
+  if (!knownModels.has(model)) {
+    throw new CliError(
+      `Unknown model "${model}". Add it with "cc-byok catalog add ${model}" or select it with "cc-byok use ${providerId} ${model}".`,
+      "UNKNOWN_MODEL",
+    );
+  }
 
   const apiKey = await context.secrets.get(providerId);
   if (!apiKey) {
@@ -72,7 +102,7 @@ export async function runLaunch(
     protocol: target.protocol,
   });
 
-  if (target.id === "codex-app") {
+  if (target.id === "chatgpt-app") {
     const codexHome = context.env.CODEX_HOME?.trim() || join(homedir(), ".codex");
     const credentialHelper = fileURLToPath(
       new URL("../credential-helper.js", import.meta.url),
@@ -84,6 +114,7 @@ export async function runLaunch(
       baseUrl,
       model,
       credentialHelper,
+      extraModels: config.extraModels,
     });
   }
 

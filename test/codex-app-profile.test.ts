@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   configureCodexAppProfile,
+  restoreCodexAppProfile,
   updateCodexConfig,
 } from "../src/core/codex-app-profile.js";
 
@@ -61,6 +62,124 @@ describe("Codex App profile", () => {
     expect(config).toContain('"vercel"');
     expect(config).not.toContain("test-api-key");
     expect(catalog).toContain('"display_name": "deepseek/deepseek-v4-pro"');
+  });
+
+  it("removes model overrides from restored config and removes cc-byok files", async () => {
+    const codexHome = await mkdtemp(join(tmpdir(), "cc-byok-profile-"));
+    cleanup.push(codexHome);
+    const configFile = join(codexHome, "config.toml");
+    const original = 'model = "deepseek/deepseek-v4-flash"\n\n[projects."/project"]\ntrust_level = "trusted"\n';
+    await writeFile(configFile, original);
+    await configureCodexAppProfile({
+      codexHome,
+      providerId: "vercel",
+      providerName: "Vercel AI Gateway",
+      baseUrl: "https://ai-gateway.vercel.sh/v1",
+      model: "deepseek/deepseek-v4-pro",
+      credentialHelper: "/cc-byok/credential-helper.js",
+    });
+
+    await restoreCodexAppProfile(codexHome);
+
+    await expect(readFile(configFile, "utf8")).resolves.toBe('\n[projects."/project"]\ntrust_level = "trusted"\n');
+    await expect(readFile(join(codexHome, "config.toml.cc-byok.bak"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(join(codexHome, "cc-byok-models.json"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("adds extra models to the catalog alongside the active model", async () => {
+    const codexHome = await mkdtemp(join(tmpdir(), "cc-byok-profile-"));
+    cleanup.push(codexHome);
+
+    await configureCodexAppProfile({
+      codexHome,
+      providerId: "vercel",
+      providerName: "Vercel AI Gateway",
+      baseUrl: "https://ai-gateway.vercel.sh/v1",
+      model: "deepseek/deepseek-v4-pro",
+      credentialHelper: "/cc-byok/credential-helper.js",
+      extraModels: ["anthropic/claude-sonnet-4.6", "openai/gpt-5"],
+    });
+
+    const catalog = JSON.parse(
+      await readFile(join(codexHome, "cc-byok-models.json"), "utf8"),
+    ) as { models: Array<{ slug: string }> };
+    expect(catalog.models.map((model) => model.slug)).toEqual([
+      "deepseek/deepseek-v4-pro",
+      "anthropic/claude-sonnet-4.6",
+      "openai/gpt-5",
+    ]);
+  });
+
+  it("preserves built-in models and appends only new external models", async () => {
+    const codexHome = await mkdtemp(join(tmpdir(), "cc-byok-profile-"));
+    cleanup.push(codexHome);
+    await writeFile(
+      join(codexHome, "models_cache.json"),
+      JSON.stringify({
+        models: [
+          { slug: "gpt-5.6", display_name: "GPT-5.6", visibility: "list" },
+          {
+            slug: "deepseek/deepseek-v4-pro",
+            display_name: "DeepSeek",
+            visibility: "list",
+          },
+        ],
+      }),
+      "utf8",
+    );
+
+    await configureCodexAppProfile({
+      codexHome,
+      providerId: "vercel",
+      providerName: "Vercel AI Gateway",
+      baseUrl: "https://ai-gateway.vercel.sh/v1",
+      model: "deepseek/deepseek-v4-pro",
+      credentialHelper: "/cc-byok/credential-helper.js",
+      extraModels: ["anthropic/claude-sonnet-4.6"],
+    });
+
+    const catalog = JSON.parse(
+      await readFile(join(codexHome, "cc-byok-models.json"), "utf8"),
+    ) as { models: Array<Record<string, unknown>> };
+    expect(catalog.models.map((model) => model.slug)).toEqual([
+      "gpt-5.6",
+      "deepseek/deepseek-v4-pro",
+      "anthropic/claude-sonnet-4.6",
+    ]);
+    expect(catalog.models[0]).toEqual({
+      slug: "gpt-5.6",
+      display_name: "GPT-5.6",
+      visibility: "list",
+    });
+  });
+
+  it("removes a config created by cc-byok when no original config existed", async () => {
+    const codexHome = await mkdtemp(join(tmpdir(), "cc-byok-profile-"));
+    cleanup.push(codexHome);
+    await configureCodexAppProfile({
+      codexHome,
+      providerId: "vercel",
+      providerName: "Vercel AI Gateway",
+      baseUrl: "https://ai-gateway.vercel.sh/v1",
+      model: "deepseek/deepseek-v4-pro",
+      credentialHelper: "/cc-byok/credential-helper.js",
+    });
+
+    await restoreCodexAppProfile(codexHome);
+
+    await expect(readFile(join(codexHome, "config.toml"), "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("removes model routing from an unrecognised config while preserving unrelated settings", async () => {
+    const codexHome = await mkdtemp(join(tmpdir(), "cc-byok-profile-"));
+    cleanup.push(codexHome);
+    const configFile = join(codexHome, "config.toml");
+    const original = 'model = "deepseek/deepseek-v4-flash"\nmodel_reasoning_effort = "none"\n\n[projects."/project"]\ntrust_level = "trusted"\n';
+    await writeFile(configFile, original);
+
+    await restoreCodexAppProfile(codexHome);
+
+    await expect(readFile(configFile, "utf8")).resolves.toBe('\n[projects."/project"]\ntrust_level = "trusted"\n');
   });
 });
 

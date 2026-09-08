@@ -21,6 +21,7 @@ export interface CodexAppProfileInput {
   baseUrl: string;
   model: string;
   credentialHelper: string;
+  extraModels?: string[];
 }
 
 export async function configureCodexAppProfile({
@@ -30,6 +31,7 @@ export async function configureCodexAppProfile({
   baseUrl,
   model,
   credentialHelper,
+  extraModels = [],
 }: CodexAppProfileInput): Promise<void> {
   const configFile = join(codexHome, "config.toml");
   const catalogFile = join(codexHome, "cc-byok-models.json");
@@ -52,10 +54,36 @@ export async function configureCodexAppProfile({
     providerId,
   });
   await atomicWrite(configFile, nextConfig);
+  const externalModels = uniqueModels([model, ...extraModels]);
+  const builtInModels = await readBuiltInCatalog(codexHome);
   await atomicWrite(
     catalogFile,
-    `${JSON.stringify(createModelCatalog(model), null, 2)}\n`,
+    `${JSON.stringify(createModelCatalog(externalModels, builtInModels), null, 2)}\n`,
   );
+}
+
+export async function restoreCodexAppProfile(codexHome: string): Promise<void> {
+  const configFile = join(codexHome, "config.toml");
+  const catalogFile = join(codexHome, "cc-byok-models.json");
+  const backupFile = join(codexHome, "config.toml.cc-byok.bak");
+  const backup = await readOptionalFile(backupFile);
+
+  if (backup !== null) {
+    await writeRestoredConfig(configFile, removeModelRoutingSettings(backup));
+    await rm(backupFile, { force: true });
+  } else {
+    const config = await readOptionalFile(configFile);
+    if (config !== null && hasManagedBlock(config)) {
+      await rm(configFile, { force: true });
+    } else if (config !== null) {
+      const restoredConfig = removeModelRoutingSettings(config);
+      if (restoredConfig !== config) {
+        await writeRestoredConfig(configFile, restoredConfig);
+      }
+    }
+  }
+
+  await rm(catalogFile, { force: true });
 }
 
 interface CodexConfigValues {
@@ -144,32 +172,90 @@ function removeManagedBlock(contents: string): string {
   return `${contents.slice(0, start)}${contents.slice(end + MANAGED_BLOCK_END.length)}`;
 }
 
-function createModelCatalog(model: string) {
+function hasManagedBlock(contents: string): boolean {
+  return contents.includes(MANAGED_BLOCK_START) && contents.includes(MANAGED_BLOCK_END);
+}
+
+function removeModelRoutingSettings(contents: string): string {
+  const newline = contents.includes("\r\n") ? "\r\n" : "\n";
+  const lines = contents.split(/\r?\n/);
+  const firstTable = lines.findIndex((line) => /^\s*\[/.test(line));
+  const topLevelEnd = firstTable === -1 ? lines.length : firstTable;
+  const matcher = /^\s*(model|model_provider|model_catalog_json|model_reasoning_effort)\s*=/;
+
+  return lines
+    .filter((line, index) => index >= topLevelEnd || !matcher.test(line))
+    .join(newline);
+}
+
+function createModelCatalog(externalModels: string[], builtInModels: CatalogModel[] = []) {
+  const builtInSlugs = new Set(
+    builtInModels
+      .map((model) => model.slug)
+      .filter((slug): slug is string => typeof slug === "string"),
+  );
+  const added = externalModels.filter((model) => !builtInSlugs.has(model));
   return {
-    models: [
-      {
-        base_instructions: "",
-        context_window: 128000,
-        default_verbosity: "low",
-        display_name: model,
-        experimental_supported_tools: [],
-        input_modalities: ["text"],
-        priority: 0,
-        shell_type: "default",
-        slug: model,
-        support_verbosity: true,
-        supported_in_api: true,
-        supported_reasoning_levels: [],
-        supports_parallel_tool_calls: true,
-        supports_reasoning_summaries: false,
-        truncation_policy: {
-          limit: 10000,
-          mode: "bytes",
-        },
-        visibility: "list",
-      },
-    ],
+    models: [...builtInModels, ...added.map(createCatalogEntry)],
   };
+}
+
+interface CatalogModel {
+  slug?: unknown;
+}
+
+function createCatalogEntry(model: string) {
+  return {
+    base_instructions: "",
+    context_window: 128000,
+    default_verbosity: "low",
+    display_name: model,
+    experimental_supported_tools: [],
+    input_modalities: ["text"],
+    priority: 0,
+    shell_type: "default",
+    slug: model,
+    support_verbosity: true,
+    supported_in_api: true,
+    supported_reasoning_levels: [],
+    supports_parallel_tool_calls: true,
+    supports_reasoning_summaries: false,
+    truncation_policy: {
+      limit: 10000,
+      mode: "bytes",
+    },
+    visibility: "list",
+  };
+}
+
+function uniqueModels(models: string[]): string[] {
+  const seen = new Set<string>();
+  return models
+    .map((model) => model.trim())
+    .filter((model) => model.length > 0)
+    .filter((model) => {
+      if (seen.has(model)) return false;
+      seen.add(model);
+      return true;
+    });
+}
+
+async function readBuiltInCatalog(codexHome: string): Promise<CatalogModel[]> {
+  const cacheFile = join(codexHome, "models_cache.json");
+  const contents = await readOptionalFile(cacheFile);
+  if (contents === null) return [];
+  try {
+    const parsed = JSON.parse(contents) as { models?: unknown };
+    if (Array.isArray(parsed.models)) {
+      return parsed.models.filter(
+        (model): model is CatalogModel =>
+          typeof model === "object" && model !== null,
+      );
+    }
+  } catch {
+    return [];
+  }
+  return [];
 }
 
 async function atomicWrite(path: string, contents: string): Promise<void> {
@@ -185,6 +271,14 @@ async function atomicWrite(path: string, contents: string): Promise<void> {
     await rm(tempFile, { force: true }).catch(() => undefined);
     throw error;
   }
+}
+
+async function writeRestoredConfig(path: string, contents: string): Promise<void> {
+  if (contents.trim() === "") {
+    await rm(path, { force: true });
+    return;
+  }
+  await atomicWrite(path, contents);
 }
 
 async function readOptionalFile(path: string): Promise<string | null> {

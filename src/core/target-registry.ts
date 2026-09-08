@@ -1,6 +1,6 @@
 import { CliError } from "./errors.js";
 
-export type ProtocolProfile = "anthropic" | "openai" | "openai-chat";
+export type ProtocolProfile = "anthropic" | "openai";
 export type ArgumentProfile = "codex";
 
 export interface LaunchTarget {
@@ -32,18 +32,12 @@ const targetList: LaunchTarget[] = [
     argumentProfile: "codex",
   },
   {
-    id: "codex-app",
-    name: "Codex App",
-    command: "codex",
+    id: "chatgpt-app",
+    name: "ChatGPT App",
+    command: "chatgpt",
     protocol: "openai",
-    defaultArgs: ["app"],
-  },
-  {
-    id: "opencode",
-    name: "OpenCode",
-    command: "opencode",
-    protocol: "openai-chat",
     defaultArgs: [],
+    restoreArgs: [],
   },
 ];
 
@@ -51,12 +45,14 @@ const targets = new Map(
   targetList.map((target) => [target.id, Object.freeze(target)]),
 );
 
+const targetAliases = new Map([['codex-app', 'chatgpt-app']]);
+
 export function listTargets(): LaunchTarget[] {
   return [...targets.values()];
 }
 
 export function resolveTarget(id: string): LaunchTarget {
-  const target = targets.get(id);
+  const target = targets.get(targetAliases.get(id) ?? id);
   if (!target) {
     throw new CliError(
       `Unknown target "${id}". Supported targets: ${[...targets.keys()].join(", ")}. Run "cc-byok target list" to list available targets.`,

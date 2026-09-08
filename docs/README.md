@@ -2,7 +2,7 @@
 
 These guides document the current `cc-byok` source tree.
 
-`cc-byok` launches Claude Code, Codex, Codex App, and OpenCode through BYOK
+`cc-byok` launches Claude Code, Codex, and the ChatGPT App through BYOK
 providers and compatible gateways. It also includes an authenticated,
 loopback-only Codex-backed OpenAI Chat Completions gateway. Provider keys and
 the local gateway bearer key are stored in your operating system keychain.
@@ -41,7 +41,7 @@ For Vercel AI Gateway:
 
 ```bash
 cc-byok provider add vercel
-cc-byok launch codex-app --provider vercel --model deepseek/deepseek-v4-pro
+cc-byok launch chatgpt-app --provider vercel --model deepseek/deepseek-v4-pro
 ```
 
 For the local Codex-backed AI Gateway:
@@ -57,8 +57,6 @@ Keep the foreground gateway running. In another terminal:
 
 ```bash
 cc-byok launch claude --provider ai-gateway --model codex-latest
-# or:
-cc-byok launch opencode --provider ai-gateway --model codex-latest
 ```
 
 The selected target command must already be installed on `PATH`. The local

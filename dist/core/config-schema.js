@@ -14,6 +14,7 @@ export const providerConfigSchema = z.object({
 const configFields = {
     activeProvider: z.string().min(1).nullable(),
     activeModel: z.string().min(1).nullable(),
+    extraModels: z.array(z.string().min(1)).default(() => []),
     providers: z.record(z.string().min(1), providerConfigSchema),
 };
 export const v2ConfigSchema = z.object({

@@ -23,7 +23,7 @@ export async function runProviderAdd(
   if (cleanProviderId === GATEWAY_PROVIDER_ID) {
     if (options.baseUrl || options.displayName) throw new CliError(`Built-in provider "${cleanProviderId}" has managed settings and does not accept custom URL or display-name options.`, "INVALID_INPUT");
     await ensureGatewayKey(context.secrets);
-    context.output.log('AI Gateway local bearer key initialized. Run "cc-byok gateway start" before launching OpenCode.');
+    context.output.log('AI Gateway local bearer key initialized. Run "cc-byok gateway start" before launching Claude Code.');
     return;
   }
 

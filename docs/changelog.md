@@ -2,17 +2,32 @@
 
 ## Unreleased
 
+- Added `cc-byok catalog add`, `catalog remove`, and `catalog list` for
+  managing a shared model catalog.
+- The shared model catalog is now validated on launch for every target: the
+  selected model must be the active model or a catalog model.
+- The ChatGPT App catalog now preserves the built-in model list (read from
+  `~/.codex/models_cache.json`) and appends the active model plus configured
+  catalog models instead of replacing the entire list.
+- Removed the `opencode` launch target and the `openai-chat` protocol. The local
+  gateway's `/v1/chat/completions` endpoint remains available to external
+  OpenAI-compatible clients.
 - Integrated `cc-byok gateway` with Codex login/logout, foreground lifecycle,
   status, managed bearer keys, and key rotation.
 - Added authenticated loopback OpenAI Chat Completions, model-list, and status
   endpoints backed by `codex app-server`, including SSE and function tools.
 - Added an Anthropic Messages translation endpoint with text streaming,
   system prompts, tool use, and tool-result continuation for Claude Code.
-- Added Codex version checks and local gateway launch preflight for OpenCode.
+- Added Codex version checks and local gateway launch preflight.
 - Added the built-in `ai-gateway` provider for the local Codex-backed OpenAI
   Chat Completions gateway at `http://127.0.0.1:3000/v1`.
 - Added protocol capability checks that allow the local gateway with Claude
-  Code and OpenCode while rejecting OpenAI Responses targets before launch.
+  Code while rejecting OpenAI Responses targets before launch.
+- Fixed the `codex-app` launch target: the Codex App desktop application was
+  renamed to the ChatGPT App, and the `codex app` CLI subcommand was removed.
+  The target now launches the renamed app via the `chatgpt` command instead of
+  the removed `codex app` subcommand. The target identifier `codex-app` is
+  unchanged.
 
 ## v0.3.2
 

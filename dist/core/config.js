@@ -12,6 +12,7 @@ export function createDefaultConfig() {
         version: 2,
         activeProvider: null,
         activeModel: null,
+        extraModels: [],
         providers: {
             [OPENROUTER.id]: {
                 displayName: OPENROUTER.displayName,
@@ -127,6 +128,7 @@ function migrateLegacyConfig(legacy) {
         version: 2,
         activeProvider: legacy.activeProvider,
         activeModel: legacy.activeModel,
+        extraModels: [],
         providers,
     });
 }

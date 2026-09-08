@@ -20,6 +20,7 @@ export declare const providerConfigSchema: z.ZodObject<{
 export declare const v2ConfigSchema: z.ZodObject<{
     activeProvider: z.ZodNullable<z.ZodString>;
     activeModel: z.ZodNullable<z.ZodString>;
+    extraModels: z.ZodDefault<z.ZodArray<z.ZodString>>;
     providers: z.ZodRecord<z.ZodString, z.ZodObject<{
         displayName: z.ZodString;
         baseUrl: z.ZodURL;
@@ -37,6 +38,7 @@ export declare const v3ConfigSchema: z.ZodObject<{
     targets: z.ZodRecord<z.ZodString, z.ZodUnknown>;
     activeProvider: z.ZodNullable<z.ZodString>;
     activeModel: z.ZodNullable<z.ZodString>;
+    extraModels: z.ZodDefault<z.ZodArray<z.ZodString>>;
     providers: z.ZodRecord<z.ZodString, z.ZodObject<{
         displayName: z.ZodString;
         baseUrl: z.ZodURL;
@@ -54,6 +56,7 @@ export declare const v3ConfigSchema: z.ZodObject<{
 export declare const configSchema: z.ZodUnion<readonly [z.ZodObject<{
     activeProvider: z.ZodNullable<z.ZodString>;
     activeModel: z.ZodNullable<z.ZodString>;
+    extraModels: z.ZodDefault<z.ZodArray<z.ZodString>>;
     providers: z.ZodRecord<z.ZodString, z.ZodObject<{
         displayName: z.ZodString;
         baseUrl: z.ZodURL;
@@ -70,6 +73,7 @@ export declare const configSchema: z.ZodUnion<readonly [z.ZodObject<{
     targets: z.ZodRecord<z.ZodString, z.ZodUnknown>;
     activeProvider: z.ZodNullable<z.ZodString>;
     activeModel: z.ZodNullable<z.ZodString>;
+    extraModels: z.ZodDefault<z.ZodArray<z.ZodString>>;
     providers: z.ZodRecord<z.ZodString, z.ZodObject<{
         displayName: z.ZodString;
         baseUrl: z.ZodURL;

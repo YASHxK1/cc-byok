@@ -3,7 +3,7 @@ export const VERCEL_AI_GATEWAY = {
     displayName: "Vercel AI Gateway",
     defaultBaseUrl: "https://ai-gateway.vercel.sh",
     routingMode: "Anthropic and OpenAI-compatible AI Gateway",
-    supportedProtocols: ["anthropic", "openai", "openai-chat"],
+    supportedProtocols: ["anthropic", "openai"],
     resolveBaseUrl(configuredBaseUrl, protocol) {
         return protocol !== "anthropic"
             ? "https://ai-gateway.vercel.sh/v1"

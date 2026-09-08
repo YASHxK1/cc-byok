@@ -81,9 +81,9 @@ through a provider but still perform poorly in agent workflows.
 cc-byok target list
 ```
 
-Displays all supported launch targets (`claude`, `codex`, `codex-app`,
-`opencode`), the underlying command, the protocol each target uses, and
-whether delegated restore is supported.
+Displays all supported launch targets (`claude`, `codex`, `chatgpt-app`), the
+underlying command, the protocol each target uses, and whether delegated
+restore is supported.
 
 ### 5. Check Status
 
@@ -115,38 +115,39 @@ Supported targets are:
 |---|---|---|---|
 | `claude` | `claude` | Anthropic | `--continue` |
 | `codex` | `codex` | OpenAI Responses | `resume --last` |
-| `codex-app` | `codex app` | OpenAI Responses | unsupported |
-| `opencode` | `opencode` | OpenAI-compatible | unsupported |
+| `chatgpt-app` | `chatgpt` (ChatGPT App) | OpenAI Responses | restore original settings |
 
 Select a target and optionally override the active provider and model:
 
 ```bash
 cc-byok launch codex --provider vercel --model openai/gpt-5
-cc-byok launch codex-app --provider vercel --model deepseek/deepseek-v4-pro
-cc-byok launch opencode --provider openrouter --model qwen/qwen3-coder
+cc-byok launch chatgpt-app --provider vercel --model deepseek/deepseek-v4-pro
 ```
 
 The overrides do not update the active provider or model in
-`~/.cc-byok/config.json`. `codex-app` also persists the resolved model and
-provider in `~/.codex/config.toml`, since Codex Desktop continues running after
+`~/.cc-byok/config.json`. `chatgpt-app` also persists the resolved model and
+provider in `~/.codex/config.toml`, since the ChatGPT App continues running after
 the launcher process exits.
 
-### Session Restore
+### Restore
 
-Resume the last session of a supported target with `--restore`:
+Resume the last session of a supported target or restore the original ChatGPT
+App settings:
 
 ```bash
 cc-byok launch --restore
 cc-byok launch codex --restore
+cc-byok launch chatgpt-app --restore
 ```
 
 For Claude Code, this is equivalent to `claude --continue`. For Codex, it maps
-to `codex resume --last`. Codex App and OpenCode do not support delegated
-restore; pass target-specific arguments after `--` instead:
+to `codex resume --last`. For ChatGPT App, it removes cc-byok model-routing
+settings from `~/.codex/config.toml`, removes cc-byok's model catalog, and
+launches `chatgpt` without cc-byok settings. The former `codex-app` target remains accepted as a
+compatibility alias. Pass target-specific arguments after `--` when needed:
 
 ```bash
 cc-byok launch -- --continue
-cc-byok launch opencode -- --resume
 ```
 
 ### Forward Target Arguments
@@ -156,7 +157,7 @@ Place target arguments after `--`:
 ```bash
 cc-byok launch -- --print "Summarize this repository"
 cc-byok launch codex -- --help
-cc-byok launch codex-app -- /path/to/project
+cc-byok launch chatgpt-app -- /path/to/project
 ```
 
 Target command-line options may override settings supplied by `cc-byok`.
@@ -187,6 +188,37 @@ cc-byok launch
 Switching providers does not delete credentials or configuration for the
 previous provider.
 
+## Manage the Model Catalog
+
+`cc-byok` keeps a shared model catalog in `~/.cc-byok/config.json` under
+`extraModels`. Every launch target validates the selected model against it: the
+model must be the active model or an ID added with `cc-byok catalog add`.
+
+Add a model:
+
+```bash
+cc-byok catalog add <model-id>
+cc-byok catalog add deepseek/deepseek-v4-pro
+```
+
+List and remove models:
+
+```bash
+cc-byok catalog list
+cc-byok catalog remove <model-id>
+```
+
+The active model is always valid, so you do not need to add it explicitly.
+Selecting a model with `cc-byok use` also makes it valid without a `catalog add`.
+
+For the ChatGPT App, the generated `cc-byok-models.json` preserves the app's
+built-in models (read from `~/.codex/models_cache.json`, copied verbatim) and
+appends the active model plus the catalog models, deduplicated by ID. This means
+the picker shows the built-in list plus your external models instead of
+replacing it.
+
+The catalog is regenerated on the next `cc-byok launch chatgpt-app`.
+
 ## List Providers
 
 ```bash
@@ -195,8 +227,9 @@ cc-byok provider list
 
 The CLI includes OpenRouter, Vercel AI Gateway, and the local Codex-backed AI
 Gateway. The local gateway exposes Anthropic Messages for Claude Code and Chat
-Completions for OpenCode. Custom Anthropic-compatible gateways can also be
-added from the CLI. The active provider is marked in the output.
+Completions for external OpenAI-compatible clients. Custom Anthropic-compatible
+gateways can also be added from the CLI. The active provider is marked in the
+output.
 
 See [Gateway Providers](gateways.md) for setup commands.
 
@@ -228,13 +261,11 @@ cc-byok gateway start --port 3100 --workspace /path/to/project --verbose
 
 The server binds only to `127.0.0.1`. A non-default port is persisted in the
 built-in provider configuration. Keep this process running and launch Claude
-Code or OpenCode from another terminal:
+Code from another terminal:
 
 ```bash
 cc-byok use ai-gateway codex-latest
 cc-byok launch claude
-# or:
-cc-byok launch opencode
 ```
 
 Gateway management commands:
@@ -279,12 +310,17 @@ overrides for `model`, `model_provider`, provider `base_url`, `env_key`, and
 `wire_api="responses"`. The model string is passed through unchanged and the
 user's `~/.codex/config.toml` is not modified.
 
-Codex App writes top-level `model`, `model_provider`, and
+The selected model is validated against the shared model catalog before launch:
+it must be the active model or an ID added with `cc-byok catalog add`.
+
+The ChatGPT App writes top-level `model`, `model_provider`, and
 `model_catalog_json` settings plus a managed `cc_byok` provider block under
 `~/.codex/config.toml`. It also writes `cc-byok-models.json` under `~/.codex`.
-The managed provider uses a command-backed helper to read the API key from the
-OS keychain, so no credential is stored in Codex configuration. The original
-Codex config is preserved once as `config.toml.cc-byok.bak`.
+The generated catalog preserves the app's built-in models and appends the active
+model plus any external models added with `cc-byok catalog add`. The managed
+provider uses a command-backed helper to read the API key from the OS keychain,
+so no credential is stored in Codex configuration. The original Codex config is
+preserved once as `config.toml.cc-byok.bak`.
 
 OpenRouter and Vercel use protocol-specific endpoints:
 
@@ -295,8 +331,8 @@ OpenRouter and Vercel use protocol-specific endpoints:
 | Local AI Gateway | `http://127.0.0.1:3000` | `http://127.0.0.1:3000/v1` (Chat Completions) |
 
 Custom providers configured through `provider add --base-url` are
-Anthropic-compatible only. Launching `codex`, `codex-app`, or `opencode` with
-one fails with an explicit compatibility error.
+Anthropic-compatible only. Launching `codex` or `chatgpt-app` with one fails
+with an explicit compatibility error.
 
 For OpenRouter, Vercel, and custom providers, the target connects directly to
 the selected provider. The opt-in `cc-byok gateway start` process is a local

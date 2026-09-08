@@ -5,8 +5,10 @@ export interface CodexAppProfileInput {
     baseUrl: string;
     model: string;
     credentialHelper: string;
+    extraModels?: string[];
 }
-export declare function configureCodexAppProfile({ codexHome, providerId, providerName, baseUrl, model, credentialHelper, }: CodexAppProfileInput): Promise<void>;
+export declare function configureCodexAppProfile({ codexHome, providerId, providerName, baseUrl, model, credentialHelper, extraModels, }: CodexAppProfileInput): Promise<void>;
+export declare function restoreCodexAppProfile(codexHome: string): Promise<void>;
 interface CodexConfigValues {
     model: string;
     providerConfigId: string;

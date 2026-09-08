@@ -41,13 +41,11 @@ Start it from the workspace Codex should treat as its working directory:
 cc-byok gateway start
 ```
 
-In another terminal, select it and launch Claude Code or OpenCode:
+In another terminal, select it and launch Claude Code:
 
 ```bash
 cc-byok use ai-gateway codex-latest
 cc-byok launch claude
-# or:
-cc-byok launch opencode
 ```
 
 The default endpoint is `http://127.0.0.1:3000/v1`. `gateway start --port`
@@ -55,10 +53,10 @@ persists a different loopback endpoint. `provider add ai-gateway` creates or
 reuses the managed key without prompting. Use `gateway key` to configure an
 external SDK and `gateway rotate-key` to invalidate the current key.
 
-This provider supports the Anthropic Messages API used by `claude` and OpenAI
-Chat Completions used by `opencode`. It remains incompatible with `codex` and
-`codex-app`, which require the OpenAI Responses API. Compatibility is checked
-before launch.
+This provider supports the Anthropic Messages API used by `claude` and exposes
+Chat Completions to external OpenAI-compatible clients. It remains incompatible
+with `codex` and `chatgpt-app`, which require the OpenAI Responses API.
+Compatibility is checked before launch.
 
 `gateway start` runs in the foreground until `Ctrl+C`. It accepts `--port`,
 `--workspace`, and `--verbose`. Use `gateway login --device-auth` for the
@@ -162,12 +160,12 @@ Official Vercel Claude Code instructions:
 
 https://vercel.com/docs/ai-gateway/sdks-and-apis/anthropic-messages-api
 
-### Launch Codex App
+### Launch ChatGPT App
 
-Codex and Codex App use Vercel's OpenAI Responses endpoint:
+Codex and ChatGPT App use Vercel's OpenAI Responses endpoint:
 
 ```bash
-cc-byok launch codex-app \
+cc-byok launch chatgpt-app \
   --provider vercel \
   --model deepseek/deepseek-v4-pro
 ```
@@ -191,8 +189,10 @@ args = ["<cc-byok credential helper>", "vercel"]
 
 The model ID is not rewritten or special-cased. `cc-byok` also writes
 `~/.codex/cc-byok-models.json` so Desktop displays the gateway model as a
-custom model. The authentication helper reads the key from the OS keychain; the
-key is not written to disk. The pre-existing Codex config is backed up once as
+custom model. The catalog preserves the app's built-in models and appends the
+active model plus any external models added with `cc-byok catalog add`. The
+authentication helper reads the key from the OS keychain; the key is not
+written to disk. The pre-existing Codex config is backed up once as
 `~/.codex/config.toml.cc-byok.bak`.
 
 ## Custom Gateway

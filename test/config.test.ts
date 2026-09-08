@@ -24,6 +24,7 @@ describe("FileConfigStore", () => {
       version: 2,
       activeProvider: null,
       activeModel: null,
+      extraModels: [],
       providers: {
         openrouter: {
           displayName: "OpenRouter",
@@ -54,6 +55,7 @@ describe("FileConfigStore", () => {
       version: 2 as const,
       activeProvider: "openrouter",
       activeModel: "anthropic/claude-sonnet-4",
+      extraModels: [],
       providers: {
         openrouter: {
           displayName: "OpenRouter",
@@ -130,9 +132,10 @@ describe("FileConfigStore", () => {
     const configFile = join(directory, "config.json");
     const original = {
       version: 3,
-      activeTarget: "codex-app",
+      activeTarget: "chatgpt-app",
       activeProvider: "vercel",
       activeModel: "deepseek/deepseek-v4-pro",
+      extraModels: [],
       providers: {
         openrouter: {
           displayName: "OpenRouter",

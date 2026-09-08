@@ -9,6 +9,7 @@ import { runProviderAdd } from "../src/commands/provider-add.js";
 import { runProviderList } from "../src/commands/provider-list.js";
 import { runStatus } from "../src/commands/status.js";
 import { runUse } from "../src/commands/use.js";
+import { runCatalogAdd, runCatalogList, runCatalogRemove } from "../src/commands/catalog.js";
 import { FileConfigStore } from "../src/core/config.js";
 import type { LaunchRequest, ProcessLauncher } from "../src/core/launcher.js";
 import type { SecretStore } from "../src/core/secret-store.js";
@@ -189,22 +190,6 @@ describe("MVP workflow", () => {
     });
   });
 
-  it("launches OpenCode through the local AI Gateway", async () => {
-    const fixture = await createFixture();
-    await runInit(fixture.context);
-
-    await runProviderAdd(fixture.context, "ai-gateway");
-    await runUse(fixture.context, "ai-gateway", "codex-latest");
-    await runLaunch(fixture.context, "opencode", []);
-
-    expect(fixture.launcher.request?.env).toMatchObject({
-      OPENAI_BASE_URL: "http://127.0.0.1:3000/v1",
-      OPENAI_API_KEY: fixture.secrets.values.get("ai-gateway"),
-      OPENAI_MODEL: "codex-latest",
-    });
-    expect(fixture.secrets.values.get("ai-gateway")).toMatch(/^[A-Za-z0-9_-]{43}$/);
-  });
-
   it("launches Claude through the local Anthropic-compatible AI Gateway", async () => {
     const fixture = await createFixture(); await runInit(fixture.context);
     let healthUrl = "";
@@ -232,6 +217,63 @@ describe("MVP workflow", () => {
       }),
     ).rejects.toMatchObject({ code: "INCOMPATIBLE_TARGET" });
     expect(fixture.launcher.request).toBeNull();
+  });
+
+  it("adds, lists, and removes external catalog models", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+
+    await runCatalogAdd(fixture.context, "anthropic/claude-sonnet-4.6");
+    await runCatalogAdd(fixture.context, "openai/gpt-5");
+    await runCatalogAdd(fixture.context, "anthropic/claude-sonnet-4.6");
+
+    expect((await fixture.context.config.read()).extraModels).toEqual([
+      "anthropic/claude-sonnet-4.6",
+      "openai/gpt-5",
+    ]);
+
+    await runCatalogList(fixture.context);
+    expect(fixture.logs.join("\n")).toContain("openai/gpt-5");
+
+    await runCatalogRemove(fixture.context, "anthropic/claude-sonnet-4.6");
+    expect((await fixture.context.config.read()).extraModels).toEqual([
+      "openai/gpt-5",
+    ]);
+  });
+
+  it("rejects removing an external model that is not in the catalog", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+
+    await expect(
+      runCatalogRemove(fixture.context, "missing/model"),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  });
+
+  it("validates the model against the shared list for every target", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+    await runProviderAdd(fixture.context, "vercel");
+    await runUse(fixture.context, "vercel", "deepseek/deepseek-v4-pro");
+    await runCatalogAdd(fixture.context, "zai/glm-5.3");
+
+    await runLaunch(fixture.context, "claude", []);
+    await runLaunch(fixture.context, "claude", [], { model: "zai/glm-5.3" });
+
+    await expect(
+      runLaunch(fixture.context, "claude", [], { model: "openai/gpt-5" }),
+    ).rejects.toMatchObject({ code: "UNKNOWN_MODEL" });
+  });
+
+  it("rejects the removed OpenCode target", async () => {
+    const fixture = await createFixture();
+    await runInit(fixture.context);
+    await runProviderAdd(fixture.context, "openrouter");
+    await runUse(fixture.context, "openrouter", "qwen/qwen3-coder");
+
+    await expect(
+      runLaunch(fixture.context, "opencode", []),
+    ).rejects.toMatchObject({ code: "UNKNOWN_TARGET" });
   });
 });
 
