@@ -45,7 +45,45 @@ requires Codex CLI.
 
 ## Install From npm
 
-Install the published package globally:
+### One-command installer (Linux and macOS)
+
+Run the installer from the repository's `main` branch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YASHxK1/cc-byok/main/scripts/install.sh | bash
+```
+
+It checks the operating system, architecture, Node.js, and npm; installs the
+latest published `cc-byok` package globally through npm; verifies the
+executable; and runs `cc-byok init`. It never uses `sudo` or downloads an
+executable binary outside npm. Re-running the command upgrades to the latest
+release and initializes the configuration if needed. Existing configuration
+and operating-system keychain credentials are preserved.
+
+The installer requires:
+
+- Linux or macOS on x86_64/amd64 or arm64/aarch64
+- Node.js 20.17 or newer
+- npm and curl
+
+The coding agent and credential store are only needed when you configure and
+use a provider. On Linux, provider credentials require a Secret
+Service-compatible store, such as GNOME Keyring or KWallet.
+
+After it finishes, configure a provider and model:
+
+```bash
+cc-byok provider add openrouter
+cc-byok use openrouter qwen/qwen3-coder
+cc-byok status
+```
+
+`provider add` prompts for the provider API key and stores it in the operating
+system keychain; the installer does not read or print credentials.
+
+### Install From npm
+
+For a manual installation or platforms not supported by the shell installer:
 
 ```bash
 npm install --global cc-byok
@@ -135,7 +173,14 @@ For custom gateway setup, see [Gateway Providers](gateways.md).
 
 ## Upgrade
 
-Upgrade a globally installed npm release with:
+Re-run the one-command installer to install the latest release and initialize
+without removing existing configuration:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YASHxK1/cc-byok/main/scripts/install.sh | bash
+```
+
+Or upgrade a globally installed npm release manually:
 
 ```bash
 npm install --global cc-byok@latest
@@ -149,11 +194,15 @@ the active model or stored credentials.
 
 ## Uninstall
 
-Remove the global command:
+Remove the globally installed package:
 
 ```bash
 npm uninstall --global cc-byok
 ```
+
+This works whether the package was installed with the one-command installer or
+directly through npm. Uninstalling does not remove user configuration or
+keychain credentials.
 
 Uninstalling does not automatically remove:
 
@@ -166,3 +215,20 @@ service. Codex account credentials remain owned by the official Codex CLI;
 `cc-byok gateway logout` delegates logout to Codex.
 
 Remove those separately only when you no longer need them.
+
+## Troubleshooting
+
+- **Node.js is too old:** install Node.js 20.17 or newer, then rerun the
+  installer. The installer does not change your Node.js installation.
+- **npm global installation fails or reports permissions:** the installer
+  intentionally never uses `sudo`. Use a Node version manager or configure npm
+  with a user-owned global prefix, then rerun it.
+- **`cc-byok` is not found in a new terminal:** add the global npm `bin`
+  directory printed by the installer to your shell's `PATH`, then start a new
+  terminal. You can locate the npm prefix with `npm config get prefix`; on
+  Linux and macOS its executable directory is typically `<prefix>/bin`.
+- **Provider credentials cannot be saved on Linux:** install and unlock a
+  Secret Service-compatible keyring for your desktop session.
+- **Initialization reports an invalid configuration:** the installer does not
+  delete or replace it. Follow the CLI error to inspect or repair the existing
+  `~/.cc-byok/config.json`; provider credentials remain in the OS keychain.

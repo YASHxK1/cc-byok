@@ -61,29 +61,39 @@ codex` requires `codex`, but not `claude` or `chatgpt`.
 
 ## Installation
 
-Install globally from npm:
+On Linux or macOS, install the latest release and initialize cc-byok with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YASHxK1/cc-byok/main/scripts/install.sh | bash
+```
+
+The installer requires Node.js 20.17 or newer and npm. It uses npm's global
+package directory, never invokes `sudo`, and preserves existing cc-byok
+configuration and credentials. If you prefer, install from npm directly:
 
 ```bash
 npm install --global cc-byok
+cc-byok init
 ```
 
-Verify the CLI:
+After installation, add a provider and select a provider model:
 
 ```bash
-cc-byok --version
-cc-byok --help
+cc-byok provider add openrouter
+cc-byok use openrouter qwen/qwen3-coder
+cc-byok status
 ```
 
-Install from source:
+See [Installation](docs/installation.md) for upgrade, PATH troubleshooting,
+and uninstall instructions.
+
+To install from source:
 
 ```bash
 npm install
 npm run build
 npm install --global .
 ```
-
-See [Installation](docs/installation.md) for platform notes, upgrade steps, and
-uninstall instructions.
 
 ## Quick Start
 
